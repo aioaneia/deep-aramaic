@@ -7,8 +7,8 @@ from tensorflow.keras.preprocessing       import image_dataset_from_directory, i
 from tensorflow.keras.preprocessing.image import load_img, img_to_array
 from tensorflow.keras.models              import load_model
 
-MODEL_PATH     = "models/model_0.936.h5"
-PATH           = "datasets/panamuwa"
+MODEL_PATH     = "../models/model_0.936.h5"
+PATH           = "../datasets/panamuwa"
 BATCH_SIZE     = 16
 IMG_SIZE       = (224, 224)
 TARGET_SIZE    = (224, 224, 3)
@@ -18,6 +18,9 @@ TEST_DIR       = os.path.join(PATH, 'test')
 
 app = Flask(__name__)
 
+#####################################
+# Datasets                          #
+#####################################
 trainDataset = image_dataset_from_directory(TRAIN_DIR,
   validation_split = 0.2,
   subset           = "training",
@@ -42,9 +45,9 @@ testDataset = image_dataset_from_directory(TEST_DIR,
   image_size = IMG_SIZE
 )
 
-classNames = trainDataset.class_names
-
-# loading the best performing model
+#####################################
+# Loading the best performing model #
+#####################################
 def loading_Model():
   model = load_model(MODEL_PATH)
 
@@ -53,14 +56,15 @@ def loading_Model():
 
   print('Test loss: {} Test Acc: {}'.format(test_loss, test_acc))
 
-  # Summary
   model.summary()
 
   return model
 
 model = loading_Model()
 
-# Predict an image
+#############################
+# Predict an image          #
+#############################
 def classify(img_path):  
   imageRaw        = load_img(img_path, target_size = TARGET_SIZE)
   image           = img_to_array(imageRaw)
@@ -77,7 +81,9 @@ def classify(img_path):
   print('Top Indices -> ', top_indices)
   print('Index ->       ', top_indice)
   print('Percent ->     ', percent)
- 
+
+  classNames = trainDataset.class_names 
+  
   className = ''
 
   for i in range(len(classNames)):
@@ -106,7 +112,9 @@ def get_data():
 
   className = classify('./test-image/Bet2.png')
 
+  className = classify('./test-image/Bet3.png')
+
   return jsonify('The letter from the image is a ', className)
 
 if __name__ == "__main__":
-  app.run(debug=False)
+  app.run(debug = False)
