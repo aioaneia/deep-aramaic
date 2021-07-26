@@ -17,3 +17,7 @@ Thumbs.db
 .metadata
 *.iml
 *.ipr
+
+# DeepLearning files
+######################
+*.h5
