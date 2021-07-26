@@ -3,20 +3,32 @@ import os
 
 from flask import Flask, render_template, request, redirect, url_for, jsonify
 
+from flask_dropzone import Dropzone
+
 from tensorflow.keras.preprocessing       import image_dataset_from_directory, image
 from tensorflow.keras.preprocessing.image import load_img, img_to_array
 from tensorflow.keras.models              import load_model
 
-MODEL_PATH     = "../models/model_0.936.h5"
+MODEL_PATH     = "../models/model_0.870.h5"
 PATH           = "../datasets/panamuwa"
-BATCH_SIZE     = 16
+BATCH_SIZE     = 32
 IMG_SIZE       = (224, 224)
 TARGET_SIZE    = (224, 224, 3)
 TRAIN_DIR      = os.path.join(PATH, 'train')
 VALIDATION_DIR = os.path.join(PATH, 'valid')
 TEST_DIR       = os.path.join(PATH, 'test')
+basedir        = os.path.abspath(os.path.dirname(__file__))
 
 app = Flask(__name__)
+
+app.config.update(
+  UPLOADED_PATH              = os.path.join(basedir, 'uploads'),
+  DROPZONE_ALLOWED_FILE_TYPE = 'image',
+  DROPZONE_MAX_FILE_SIZE     = 3,
+  DROPZONE_MAX_FILES         = 30
+)
+
+dropzone = Dropzone(app)
 
 #####################################
 # Datasets                          #
@@ -103,18 +115,41 @@ def classify(img_path):
 @app.route('/predict', methods=['POST', 'GET'])
 def get_data():
   className = classify('./test-image/Alef1.png')
-
   className = classify('./test-image/Alef2.png')
-
   className = classify('./test-image/Alef3.png')
-
   className = classify('./test-image/Bet1.png')
-
   className = classify('./test-image/Bet2.png')
-
   className = classify('./test-image/Bet3.png')
 
   return jsonify('The letter from the image is a ', className)
+
+@app.route('/image', methods=['GET'])
+def upload():
+    return render_template('index.html')
+
+@app.route('/predict', methods=['POST'])
+def predict():
+  f = request.files.get('file')
+
+  if f.filename.split('.')[1] != 'png':
+    return 'PNG only!', 400
+    
+  file_path = os.path.join(app.config['UPLOADED_PATH'], f.filename)
+
+  f.save(file_path)
+    
+  className = classify(file_path)
+  
+  message = 'The letter from the image is ' + className
+
+  if className == 'No Letter':
+    message = 'There is no identifiable letter in the image'
+
+  messages = [message]
+
+  print('messages --> ', messages)
+
+  return render_template('prediction.html')
 
 if __name__ == "__main__":
   app.run(debug = False)

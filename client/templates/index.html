@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Character image search</title>
+  {{ dropzone.load_css() }}
+  {{ dropzone.style('border: 2px dashed #0087F7; margin: 10%; min-height: 400px;') }}
+</head>
+<body>
+  <h1>Character image search</h1>
+  {{ dropzone.create(action='predict') }}
+  {{ dropzone.load_js() }}
+  {{ dropzone.config() }}
+  {# You can get the success response from server like this: #}
+  {#{ dropzone.config(custom_options="success: function(file, response){console.log(response);}") }#}
+  <hr>
+
+  {% for message in messages %}
+    <div class="flash">{{ message }}</div>
+    <h2>Possibility {{ message }}</h2>
+  {% endfor %}
+</body>
+</html>

@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Character prediction</title>
+</head>
+<body>
+  <h1>Character prediction</h1>
+  
+  <h2>Possibility {{ messages }}</h2>
+
+  {% for message in messages %}
+    <div class="flash">{{ message }}</div>
+    <h2>Possibility {{ message }}</h2>
+  {% endfor %}
+</body>
+</html>
