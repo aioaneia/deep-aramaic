@@ -112,16 +112,6 @@ def classify(img_path):
 #############################
 # Routes                    #
 #############################
-@app.route('/predict', methods=['POST', 'GET'])
-def get_data():
-  className = classify('./test-image/Alef1.png')
-  className = classify('./test-image/Alef2.png')
-  className = classify('./test-image/Alef3.png')
-  className = classify('./test-image/Bet1.png')
-  className = classify('./test-image/Bet2.png')
-  className = classify('./test-image/Bet3.png')
-
-  return jsonify('The letter from the image is a ', className)
 
 @app.route('/image', methods=['GET'])
 def upload():
@@ -149,7 +139,9 @@ def predict():
 
   print('messages --> ', messages)
 
-  return render_template('prediction.html')
+  return render_template('index.html', messages=messages)
+
+  #return jsonify(messages)
 
 if __name__ == "__main__":
   app.run(debug = False)
