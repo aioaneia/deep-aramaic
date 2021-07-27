@@ -18,6 +18,13 @@ Thumbs.db
 *.iml
 *.ipr
 
+# IDE generated files #
+######################
+*.gz
+*.pb
+*.v2
+*.profile-empty
+
 # DeepLearning files
 ######################
 *.h5

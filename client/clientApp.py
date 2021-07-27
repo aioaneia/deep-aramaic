@@ -9,7 +9,7 @@ from tensorflow.keras.preprocessing       import image_dataset_from_directory, i
 from tensorflow.keras.preprocessing.image import load_img, img_to_array
 from tensorflow.keras.models              import load_model
 
-MODEL_PATH     = "../models/model_0.870.h5"
+MODEL_PATH     = "../models/model_0.926.h5"
 PATH           = "../datasets/panamuwa"
 BATCH_SIZE     = 32
 IMG_SIZE       = (224, 224)
@@ -22,7 +22,7 @@ basedir        = os.path.abspath(os.path.dirname(__file__))
 app = Flask(__name__)
 
 app.config.update(
-  UPLOADED_PATH              = os.path.join(basedir, 'uploads'),
+  UPLOADED_PATH              = os.path.join(basedir, 'static/uploads'),
   DROPZONE_ALLOWED_FILE_TYPE = 'image',
   DROPZONE_MAX_FILE_SIZE     = 3,
   DROPZONE_MAX_FILES         = 30
@@ -61,9 +61,8 @@ testDataset = image_dataset_from_directory(TEST_DIR,
 # Loading the best performing model #
 #####################################
 def loading_Model():
-  model = load_model(MODEL_PATH)
+  model               = load_model(MODEL_PATH)
 
-  # Getting test accuracy and loss
   test_loss, test_acc = model.evaluate(testDataset)
 
   print('Test loss: {} Test Acc: {}'.format(test_loss, test_acc))
@@ -83,31 +82,47 @@ def classify(img_path):
   predictionImage = np.array(image)
   predictionImage = np.expand_dims(image, 0)
   predictions     = model.predict(predictionImage)
-  top_indices     = np.argsort(predictions)[0, ::-1][:5]
+  top_indices     = np.argsort(predictions)[0, ::-1][:3]
   top_indice      = np.argmax(predictions[0])
-  percent         = 100 * np.max(predictions[0])
+
+  top_percents    = np.sort(predictions)[0, ::-1][:3]
+  percent         =  round((100 * np.max(predictions[0])), 3)
 
   print('-------------------------------------')
-  print('Shape ->       ', predictions.shape)
-  print('Predictions -> ', predictions[0])
-  print('Top Indices -> ', top_indices)
-  print('Index ->       ', top_indice)
-  print('Percent ->     ', percent)
+  print('Shape ->        ', predictions.shape)
+  print('Predictions ->  ', predictions[0])
+  print('Top Indices ->  ', top_indices)
+  print('Top Percents -> ', top_percents)
+  print('Index ->        ', top_indice)
+  print('Percent ->      ', percent)
 
   classNames = trainDataset.class_names 
-  
-  className = ''
+
+  predictionObjects = []
+
+  # for i in range(len(classNames)):
+  #   if i == top_indice:
+  #     predictionObj = {
+  #       'letter':     classNames[i],
+  #       'prediction': percent
+  #     }
+  #     predictionObjects.append(predictionObj)
+  #     break
 
   for i in range(len(classNames)):
-    if i == top_indice:
-      className = classNames[i]
-      break
-  
-  print('Letter ->      ', className)
+    for j in range(len(top_indices)):
+      if i == top_indices[j]:
+        predictionObj = {
+          'letter':     classNames[i],
+          'prediction': top_percents[j]
+        }
+        predictionObjects.append(predictionObj)
+
+  print('Letters ->      ', predictionObjects)
   print('-------------------------------------')
   print('')
 
-  return className
+  return predictionObjects
 
 #############################
 # Routes                    #
@@ -127,21 +142,21 @@ def predict():
   file_path = os.path.join(app.config['UPLOADED_PATH'], f.filename)
 
   f.save(file_path)
-    
-  className = classify(file_path)
-  
-  message = 'The letter from the image is ' + className
 
-  if className == 'No Letter':
-    message = 'There is no identifiable letter in the image'
+  predictions = classify(file_path)
 
-  messages = [message]
+  print('prediction --> ', predictions)
 
-  print('messages --> ', messages)
+  data = {
+    'filename' : f.filename,
+    'predictions' : predictions
+  }
 
-  return render_template('index.html', messages=messages)
+  return render_template('index.html', data = data)
 
-  #return jsonify(messages)
+@app.route('/display/<filename>')
+def display_image(filename):
+	return redirect(url_for('static', filename='uploads/' + filename), code = 301)
 
 if __name__ == "__main__":
   app.run(debug = False)

@@ -13,5 +13,21 @@
     <div class="flash">{{ message }}</div>
     <h2>Possibility {{ message }}</h2>
   {% endfor %}
+
+  <div class="col s12 m7">
+    <h2 class="header">Letter Recognition Model</h2>
+    <div class="card horizontal">
+      <div class="card-image">
+        <img src="{{ url_for('static', filename = 'images/Bet1.png') }}">
+      </div>
+      <div class="card-stacked">
+        <div class="card-content">
+          <p>Upload images with letters</p>
+        </div>
+        <div class="card-action">
+          <a href="#">This is a link</a>
+        </div>
+      </div>
+    </div>
 </body>
 </html>

@@ -9,7 +9,7 @@ from tensorflow.keras.models                            import Model, Sequential
 from tensorflow.keras.layers                            import MaxPooling2D, Dense, Dropout, Flatten, GlobalAveragePooling2D, Reshape
 from tensorflow.keras.preprocessing                     import image_dataset_from_directory, image
 from tensorflow.keras.preprocessing.image               import load_img, img_to_array
-from tensorflow.keras.applications                      import VVGG19, ResNet50
+from tensorflow.keras.applications                      import VGG19, ResNet50
 from tensorflow.keras.models                            import load_model
 from tensorflow.keras.layers.experimental.preprocessing import RandomFlip, RandomRotation, Rescaling
 from tensorflow.keras.optimizers                        import Adam, SGD
@@ -23,7 +23,7 @@ PATH          = "datasets/panamuwa"
 BATCH_SIZE    = 32
 IMG_SIZE      = (224, 224)
 IMG_SHAPE     = IMG_SIZE + (3,)
-EPOCHS        = 30
+EPOCHS        = 35
 LEARNING_RATE = 0.001
 BETA_1        = 0.9
 BETA_2        = 0.999
@@ -39,7 +39,7 @@ TEST_DIR       = os.path.join(PATH, 'test')
 
 dataAugmentation = Sequential([
   RandomFlip('horizontal'),
-  #RandomRotation(0.1),
+  RandomRotation(0.1),
 ])
 
 trainDataset = image_dataset_from_directory(
@@ -63,6 +63,8 @@ validationDataset = image_dataset_from_directory(
   image_size       = IMG_SIZE,
   batch_size       = BATCH_SIZE
 )
+
+augmentedValidationDataset = validationDataset.map(lambda x, y: (dataAugmentation(x, training = True), y))
 
 testDataset = image_dataset_from_directory(
   TEST_DIR,
@@ -153,12 +155,12 @@ def create_Sequential_VGG19_model():
   model.add(vgg19Model)
 
   model.add(Flatten())
-  
-  model.add(Dense(4096,       activation = 'relu',  kernel_initializer = 'he_normal'))
-  model.add(Dropout(0.50))
 
-  model.add(Dense(4096,       activation = 'relu',  kernel_initializer = 'he_normal'))
-  model.add(Dropout(0.50))
+  model.add(Dense(NR_NEURONS,       activation = 'relu',  kernel_initializer = 'he_normal'))
+  model.add(Dropout(0.30))
+
+  model.add(Dense(NR_NEURONS,       activation = 'relu',  kernel_initializer = 'he_normal'))
+  model.add(Dropout(0.30))
 
   model.add(Dense(NR_CLASSES, activation='softmax', kernel_initializer = 'glorot_normal'))
 
@@ -210,7 +212,7 @@ def create_ResNet50_model():
 
   return model
 
-model = create_ResNet50_model()
+model = create_VGG19_model()
 
 #############################
 # Compile                   #
@@ -232,7 +234,7 @@ model.summary()
 
 earlyStop = EarlyStopping(
   monitor  = 'val_accuracy', 
-  patience = 20
+  patience = 10
 )
 
 checkpointer = ModelCheckpoint(
@@ -257,7 +259,7 @@ tensorboard = TensorBoard(
 history = model.fit(
   augmentedTrainDataset,
   epochs           = EPOCHS,
-  validation_data  = validationDataset,
+  validation_data  = augmentedValidationDataset,
   callbacks        = [earlyStop, checkpointer, tensorboard]
 )
 
