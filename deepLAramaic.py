@@ -2,7 +2,6 @@ import numpy             as np
 import pandas            as pd
 import matplotlib.pyplot as plt
 import tensorflow        as tf
-import seaborn           as sns
 import os
 
 from tensorflow.keras                                   import Input
@@ -10,7 +9,7 @@ from tensorflow.keras.models                            import Model, Sequential
 from tensorflow.keras.layers                            import MaxPooling2D, Dense, Dropout, Flatten, GlobalAveragePooling2D, Reshape
 from tensorflow.keras.preprocessing                     import image_dataset_from_directory, image
 from tensorflow.keras.preprocessing.image               import load_img, img_to_array
-from tensorflow.keras.applications                      import VGG16, VGG19, ResNet50
+from tensorflow.keras.applications                      import VVGG19, ResNet50
 from tensorflow.keras.models                            import load_model
 from tensorflow.keras.layers.experimental.preprocessing import RandomFlip, RandomRotation, Rescaling
 from tensorflow.keras.optimizers                        import Adam, SGD
@@ -24,11 +23,12 @@ PATH          = "datasets/panamuwa"
 BATCH_SIZE    = 32
 IMG_SIZE      = (224, 224)
 IMG_SHAPE     = IMG_SIZE + (3,)
-EPOCHS        = 50
+EPOCHS        = 30
 LEARNING_RATE = 0.001
 BETA_1        = 0.9
 BETA_2        = 0.999
 NR_CLASSES    = 23
+NR_NEURONS    = 4096 + 1024
 WEIGHTS       = 'imagenet'
 POOLING       = 'avg'
 AUTOTUNE      = tf.data.AUTOTUNE
@@ -39,7 +39,7 @@ TEST_DIR       = os.path.join(PATH, 'test')
 
 dataAugmentation = Sequential([
   RandomFlip('horizontal'),
-  RandomRotation(0.1),
+  #RandomRotation(0.1),
 ])
 
 trainDataset = image_dataset_from_directory(
@@ -87,10 +87,6 @@ AdamOpt = Adam(
   beta_1        = BETA_1, 
   beta_2        = BETA_2, 
   epsilon       = 1e-08
-)
-
-SgdOpt = SGD(
-  learning_rate = 0.1
 )
 
 AdaOpt = AdaBound(
@@ -177,11 +173,13 @@ def create_VGG19_model():
 
   x = Flatten()(vgg19Model.layers[-1].output)
   
-  x = Dense(4096, activation = 'relu', kernel_initializer = 'he_normal')(x)
-  x = Dropout(0.50)(x)
+  x = Rescaling(1.0 / 255)(x)
 
-  x = Dense(4096, activation = 'relu', kernel_initializer = 'he_normal')(x)
-  x = Dropout(0.50)(x)
+  x = Dense(NR_NEURONS, activation = 'relu', kernel_initializer = 'he_normal')(x)
+  x = Dropout(0.30)(x)
+
+  x = Dense(NR_NEURONS, activation = 'relu', kernel_initializer = 'he_normal')(x)
+  x = Dropout(0.30)(x)
 
   predictions = Dense(NR_CLASSES, activation='softmax', kernel_initializer = 'glorot_normal')(x)
 
@@ -200,10 +198,10 @@ def create_ResNet50_model():
   
   x = Rescaling(1.0 / 255)(x)
 
-  x = Dense(4096, activation = 'relu', kernel_initializer = 'he_normal')(x)
+  x = Dense(NR_NEURONS, activation = 'relu', kernel_initializer = 'he_normal')(x)
   x = Dropout(0.30)(x)
 
-  x = Dense(4096, activation = 'relu', kernel_initializer = 'he_normal')(x)
+  x = Dense(NR_NEURONS, activation = 'relu', kernel_initializer = 'he_normal')(x)
   x = Dropout(0.30)(x)
 
   predictions = Dense(NR_CLASSES, activation='softmax', kernel_initializer = 'glorot_normal')(x)
