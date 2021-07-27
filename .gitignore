@@ -18,7 +18,7 @@ Thumbs.db
 *.iml
 *.ipr
 
-# IDE generated files #
+# Logs generated files #
 ######################
 *.gz
 *.pb
