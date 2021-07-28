@@ -28,7 +28,7 @@ LEARNING_RATE = 0.001
 BETA_1        = 0.9
 BETA_2        = 0.999
 NR_CLASSES    = 23
-NR_NEURONS    = 4096 + 1024
+NR_NEURONS    = 6 * 1024
 WEIGHTS       = 'imagenet'
 POOLING       = 'avg'
 AUTOTUNE      = tf.data.AUTOTUNE
@@ -212,7 +212,7 @@ def create_ResNet50_model():
 
   return model
 
-model = create_VGG19_model()
+model = create_ResNet50_model()
 
 #############################
 # Compile                   #
