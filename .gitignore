@@ -17,6 +17,7 @@ Thumbs.db
 .metadata
 *.iml
 *.ipr
+.vscode
 
 # Logs generated files #
 ######################
