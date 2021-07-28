@@ -3,13 +3,13 @@ import os
 
 from flask import Flask, render_template, request, redirect, url_for, jsonify
 
-from flask_dropzone import Dropzone
-
 from tensorflow.keras.preprocessing       import image_dataset_from_directory, image
 from tensorflow.keras.preprocessing.image import load_img, img_to_array
 from tensorflow.keras.models              import load_model
 
-MODEL_PATH     = "../models/model_0.926.h5"
+RESNET50_PATH  = "../models/model_0.926.h5"
+VGG19_PATH     = "../models/model_0.889.h5"
+MODEL_PATH     = VGG19_PATH
 PATH           = "../datasets/panamuwa"
 BATCH_SIZE     = 32
 IMG_SIZE       = (224, 224)
@@ -27,8 +27,6 @@ app.config.update(
   DROPZONE_MAX_FILE_SIZE     = 3,
   DROPZONE_MAX_FILES         = 30
 )
-
-dropzone = Dropzone(app)
 
 #####################################
 # Datasets                          #
@@ -114,7 +112,7 @@ def classify(img_path):
       if i == top_indices[j]:
         predictionObj = {
           'letter':     classNames[i],
-          'prediction': top_percents[j]
+          'prediction': round((100 * top_percents[j]), 3) 
         }
         predictionObjects.append(predictionObj)
 

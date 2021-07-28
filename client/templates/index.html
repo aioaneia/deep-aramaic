@@ -1,54 +1,140 @@
 <!DOCTYPE html>
 <html lang="en">
   <head>
-    <!--Import Google Icon Font-->
-    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1.0"/>
 
-    <!--Import materialize.css-->
-    <link rel= "stylesheet" type= "text/css" href= "{{ url_for('static', filename = 'css/materialize.min.css') }}" media="screen,projection"">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons" >
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename = 'css/materialize.min.css') }}" media="screen,projection"">
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename = 'css/style.css') }}" media="screen,projection"/>
 
     <!--Let browser know website is optimized for mobile-->
-    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <!-- <meta name="viewport" content="width=device-width, initial-scale=1.0"/> -->
   </head>
 <body>
-  <!--JavaScript at end of body for optimized loading-->
+  <!--  Scripts-->
+  <script src="https://code.jquery.com/jquery-2.1.1.min.js"></script>
   <script type="text/javascript" src="{{ url_for('static',filename='js/materialize.min.js') }}"></script>
-  
-  <h2>Aramaic Character Recognition Model</h2>
-  
-  <form action="/predict" method="POST" enctype="multipart/form-data">
-    <div class="file-field input-field">
-      <div class="btn">
-        <span>Image</span>
-        <input type="file" name="file" id="file">
-      </div>
-      <div class="file-path-wrapper">
-        <input class="file-path validate" type="text" placeholder="Upload one or more files">
-      </div>
+  <script type="text/javascript" src="{{ url_for('static',filename='js/init.js') }}"></script>
+
+  <nav class="light-blue" role="navigation">
+    <div class="nav-wrapper container">
+      <a id="logo-container" href="#" class="brand-logo orange-text text-lighten-3">Deep Learning</a>
+      <ul class="right hide-on-med-and-down">
+        <li><a class="orange-text text-lighten-3" href="https://www.learndatasci.com/tutorials/convolutional-neural-networks-image-classification/">DeepL</a></li>
+        <li><a class="orange-text text-lighten-3" href="https://www.learndatasci.com/tutorials/convolutional-neural-networks-image-classification/">DataSets</a></li>
+      </ul>
+
+      <ul id="nav-mobile" class="sidenav">
+        <li><a href="#">Navbar Link</a></li>
+      </ul>
+      <a href="#" data-target="nav-mobile" class="sidenav-trigger"><i class="material-icons">menu</i></a>
     </div>
-    <div>
-      <button class="btn waves-effect waves-light" type="submit" name="action">Upload
-        <i class="material-icons right">send</i>
-      </button>
+  </nav>
+  
+  <div class="section no-pad-bot" id="index-banner">
+    <div class="container">
+      <br><br>
+      <h1 class="header center orange-text">Deep Learning Aramaic</h1>
+      <div class="row center">
+        <h5 class="header col s12 light">A character recognition model based on Aramaic Inscription</h5>
+      </div>
+      <br><br>
     </div>
-  </form>
+  </div>
+
+  <div class="row center-align">
+    <div class="col s12 m6 l3 center-align">
+      <form action="/predict" method="POST" enctype="multipart/form-data">
+        
+        <div class="file-field input-field center-align">
+
+          <div class="btn center">
+            <span class="center-align">Select Image</span>
+            <input type="file" name="file" id="file">
+          </div>
+
+          <div class="file-path-wrapper center">
+            <input class="file-path validate center-align" type="text" placeholder="Upload one or more files">
+          </div>
+
+          <div class="center">
+            <button class="btn waves-effect waves-light center-align" type="submit" name="action">Upload
+              <i class="material-icons right">file_upload</i>
+            </button>
+          </div>
+
+        </div>
+      </form>
+    </div>
+  </div>
 
   {% if data %}
-    <div>
-      <img src="{{ url_for('display_image', filename = data['filename']) }}">
-    </div>
-    
-    <nav>
-      <div class="nav-wrapper">
-        <a href="" class="brand-logo">Prediction</a>
-        <ul id="nav-mobile" class="right hide-on-med-and-down">
-          {% for prediction in data['predictions'] %}
-            <li><a href="">{{ prediction['letter'] }} <span class="badge">{{ prediction['prediction'] }}</span></a></li>
-          {% endfor %}
-        </ul>
+
+  <div class="container">
+    <div class="section">
+
+      <!--   Icon Section   -->
+      <div class="row">
+
+        <div class="col s12 m4 l3">
+          <div class="icon-block">
+
+            <div class="card hoverable">
+              <div class="card-image waves-effect waves-block waves-light">
+                <img class="responsive-img" height="50" src="{{ url_for('display_image', filename = data['filename']) }}">
+              </div>
+        
+              <div class="card-content">
+                <span class="card-title activator grey-text text-darken-4">
+                  Predictions<i class="material-icons right">more_vert</i>
+                </span>
+                  {% for prediction in data['predictions'] %}
+                  <p><a href="">{{ prediction['letter'] }} <span class="badge">{{ prediction['prediction'] }}</span></a></p>
+                  {% endfor %}
+              </div>
+        
+              <div class="card-reveal">
+                <span class="card-title grey-text text-darken-4">Predictions<i class="material-icons right">close</i></span>
+                <p>Here is some more information about this product that is only revealed once clicked on.</p>
+              </div>
+            </div>
+
+          </div>
+        </div>
+        
       </div>
-    </nav>
+
+    </div>
+    <br><br>
+  </div>
+
   {% endif %}
+
+  <footer class="page-footer light-blue lighten-1">
+    <div class="container">
+      <div class="row">
+        
+        <div class="col l6 s12">
+          <h5 class="white-text">Research Bio</h5>
+          <p class="white-text text-lighten-4">We are a team of researchers working on Ancient Near East Inscriptions.</p>
+        </div>
+
+        <div class="col l3 s12">
+          <h5 class="white-text">Connect</h5>
+          <ul>
+            <li><a class="white-text" href="https://github.com/aioaneia/deep-aramaic">HitHub</a></li>
+            <li><a class="white-text" href="https://unistra.academia.edu/RegineHunzikerRodewald">Regine Hunziker-Rodewald</a></li>
+          </ul>
+        </div>
+      </div>
+    </div>
+    <div class="footer-copyright">
+      <div class="container">
+      Made by <a class="orange-text text-lighten-3" href="https://unistra.academia.edu/RegineHunzikerRodewald">Figurine21 Project</a>
+      </div>
+    </div>
+  </footer>
 
 </body>
 </html>
