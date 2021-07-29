@@ -17,6 +17,14 @@ Thumbs.db
 .metadata
 *.iml
 *.ipr
+.vscode
+
+# Logs generated files #
+######################
+*.gz
+*.pb
+*.v2
+*.profile-empty
 
 # DeepLearning files
 ######################

@@ -1,23 +1,150 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <title>Character image search</title>
-  {{ dropzone.load_css() }}
-  {{ dropzone.style('border: 2px dashed #0087F7; margin: 10%; min-height: 400px;') }}
-</head>
-<body>
-  <h1>Character image search</h1>
-  {{ dropzone.create(action='predict') }}
-  {{ dropzone.load_js() }}
-  {{ dropzone.config() }}
-  {# You can get the success response from server like this: #}
-  {#{ dropzone.config(custom_options="success: function(file, response){console.log(response);}") }#}
-  <hr>
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1.0"/>
 
-  {% for message in messages %}
-    <div class="flash">{{ message }}</div>
-    <h2>Possibility {{ message }}</h2>
-  {% endfor %}
+    <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons" >
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename = 'css/materialize.css') }}" media="screen,projection"">
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename = 'css/style.css') }}" media="screen,projection"/>
+
+    <!--Let browser know website is optimized for mobile-->
+    <!-- <meta name="viewport" content="width=device-width, initial-scale=1.0"/> -->
+  </head>
+<body>
+  <!--  Scripts-->
+  <script src="https://code.jquery.com/jquery-2.1.1.min.js"></script>
+  <script type="text/javascript" src="{{ url_for('static',filename='js/materialize.js') }}"></script>
+  <script type="text/javascript" src="{{ url_for('static',filename='js/init.js') }}"></script>
+
+  <nav class="light-blue" role="navigation">
+    <div class="nav-wrapper container">
+      <a id="logo-container" href="#" class="brand-logo orange-text text-lighten-3">Deep Learning</a>
+      <ul class="right hide-on-med-and-down">
+        <li><a class="orange-text text-lighten-3" href="https://www.learndatasci.com/tutorials/convolutional-neural-networks-image-classification/">DeepL</a></li>
+        <li><a class="orange-text text-lighten-3" href="https://www.learndatasci.com/tutorials/convolutional-neural-networks-image-classification/">DataSets</a></li>
+      </ul>
+
+      <ul id="nav-mobile" class="sidenav">
+        <li><a href="#">Navbar Link</a></li>
+      </ul>
+      <a href="#" data-target="nav-mobile" class="sidenav-trigger"><i class="material-icons">menu</i></a>
+    </div>
+  </nav>
+  
+  <div class="section no-pad-bot" id="index-banner">
+    <div class="container">
+      <br><br>
+      <h1 class="header center orange-text">Deep Learning Aramaic</h1>
+      <div class="row center">
+        <h5 class="header col s12 light">A character recognition model based on Aramaic Inscription</h5>
+      </div>
+      <br><br>
+    </div>
+  </div>
+
+  <div class="row center-align">
+    <div class="col s12 m6 l3 center-align">
+      <form action="/predict" method="POST" enctype="multipart/form-data">
+        
+        <div class="file-field input-field center-align">
+
+          <div class="btn center">
+            <span class="center-align">Select Image</span>
+            <input type="file" name="file" id="file">
+          </div>
+
+          <div class="file-path-wrapper center">
+            <input class="file-path validate center-align" type="text" placeholder="Upload one or more files">
+          </div>
+
+          <div class="center">
+            <button class="btn waves-effect waves-light center-align" type="submit" name="action">Upload
+              <i class="material-icons right">file_upload</i>
+            </button>
+          </div>
+
+        </div>
+      </form>
+    </div>
+  </div>
+
+  {% if data %}
+
+  <div class="container">
+    <div class="section">
+
+      <!--   Icon Section   -->
+      <div class="row">
+
+        <div class="col s12 m4 l3">
+          <div class="icon-block">
+
+            <div class="card hoverable">
+              <div class="card-image waves-effect waves-block waves-light">
+                <img class="responsive-img" height="50" src="{{ url_for('display_image', filename = data['filename']) }}">
+              </div>
+        
+              <div class="card-content">
+                <span class="card-title activator grey-text text-darken-4">
+                  Predictions<i class="material-icons right">more_vert</i>
+                </span>
+                  {% for prediction in data['predictions'] %}
+                  <p>
+                    <a href="">{{ prediction['letter'] }} <span class="badge">{{ prediction['prediction'] }}</span></a>
+                  </p>
+                  {% endfor %}
+              </div>
+        
+              <div class="card-image waves-effect waves-block waves-light">
+                {% for prediction in data['predictions'] %}
+                  <img class="small-img" src="{{ url_for('show_letter', lettername = prediction['letter']) }}"> 
+                {% endfor %}
+              </div>
+
+              <div class="card-reveal">
+                <span class="card-title grey-text text-darken-4">More Information<i class="material-icons right">close</i></span>
+                <p>Source: Letter from Hadad Statue Inscription of Panamuwa I, king of Sam’al </p>
+                <p>Period: VII BCE</p>
+                <p>Craft Skills:  Experienced hand</p>
+              </div>
+            </div>
+
+          </div>
+        </div>
+        
+      </div>
+
+    </div>
+    <br><br>
+  </div>
+
+  {% endif %}
+
+  <footer class="page-footer light-blue lighten-1">
+    <div class="container">
+      <div class="row">
+        
+        <div class="col l6 s12">
+          <h5 class="white-text">Research Bio</h5>
+          <p class="white-text text-lighten-4">We are a team of researchers working on Ancient Near East Inscriptions.</p>
+        </div>
+
+        <div class="col l3 s12">
+          <h5 class="white-text">Connect</h5>
+          <ul>
+            <li><a class="white-text" href="https://github.com/aioaneia/deep-aramaic">HitHub</a></li>
+            <li><a class="white-text" href="https://unistra.academia.edu/RegineHunzikerRodewald">Regine Hunziker-Rodewald</a></li>
+          </ul>
+        </div>
+      </div>
+    </div>
+    <div class="footer-copyright">
+      <div class="container">
+      Made by <a class="orange-text text-lighten-3" href="https://unistra.academia.edu/RegineHunzikerRodewald">Figurine21 Project</a>
+      </div>
+    </div>
+  </footer>
+
 </body>
 </html>
