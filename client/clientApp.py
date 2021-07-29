@@ -7,9 +7,9 @@ from tensorflow.keras.preprocessing       import image_dataset_from_directory, i
 from tensorflow.keras.preprocessing.image import load_img, img_to_array
 from tensorflow.keras.models              import load_model
 
-RESNET50_PATH  = "../models/model_0.926.h5"
+RESNET50_PATH  = "../models/model_0.963.h5"
 VGG19_PATH     = "../models/model_0.889.h5"
-MODEL_PATH     = VGG19_PATH
+MODEL_PATH     = RESNET50_PATH
 PATH           = "../datasets/panamuwa"
 BATCH_SIZE     = 32
 IMG_SIZE       = (224, 224)
@@ -155,6 +155,10 @@ def predict():
 @app.route('/display/<filename>')
 def display_image(filename):
 	return redirect(url_for('static', filename='uploads/' + filename), code = 301)
+
+@app.route('/show/<lettername>')
+def show_letter(lettername):
+	return redirect(url_for('static', filename='images/alphabet/' + lettername + '.png'), code = 301)
 
 if __name__ == "__main__":
   app.run(debug = False)

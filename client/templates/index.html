@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1.0"/>
 
     <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons" >
-    <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename = 'css/materialize.min.css') }}" media="screen,projection"">
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename = 'css/materialize.css') }}" media="screen,projection"">
     <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename = 'css/style.css') }}" media="screen,projection"/>
 
     <!--Let browser know website is optimized for mobile-->
@@ -14,7 +14,7 @@
 <body>
   <!--  Scripts-->
   <script src="https://code.jquery.com/jquery-2.1.1.min.js"></script>
-  <script type="text/javascript" src="{{ url_for('static',filename='js/materialize.min.js') }}"></script>
+  <script type="text/javascript" src="{{ url_for('static',filename='js/materialize.js') }}"></script>
   <script type="text/javascript" src="{{ url_for('static',filename='js/init.js') }}"></script>
 
   <nav class="light-blue" role="navigation">
@@ -90,13 +90,23 @@
                   Predictions<i class="material-icons right">more_vert</i>
                 </span>
                   {% for prediction in data['predictions'] %}
-                  <p><a href="">{{ prediction['letter'] }} <span class="badge">{{ prediction['prediction'] }}</span></a></p>
+                  <p>
+                    <a href="">{{ prediction['letter'] }} <span class="badge">{{ prediction['prediction'] }}</span></a>
+                  </p>
                   {% endfor %}
               </div>
         
+              <div class="card-image waves-effect waves-block waves-light">
+                {% for prediction in data['predictions'] %}
+                  <img class="small-img" src="{{ url_for('show_letter', lettername = prediction['letter']) }}"> 
+                {% endfor %}
+              </div>
+
               <div class="card-reveal">
-                <span class="card-title grey-text text-darken-4">Predictions<i class="material-icons right">close</i></span>
-                <p>Here is some more information about this product that is only revealed once clicked on.</p>
+                <span class="card-title grey-text text-darken-4">More Information<i class="material-icons right">close</i></span>
+                <p>Source: Letter from Hadad Statue Inscription of Panamuwa I, king of Sam’al </p>
+                <p>Period: VII BCE</p>
+                <p>Craft Skills:  Experienced hand</p>
               </div>
             </div>
 

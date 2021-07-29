@@ -212,7 +212,7 @@ def create_ResNet50_model():
 
   return model
 
-model = create_ResNet50_model()
+model = create_VGG19_model()
 
 #############################
 # Compile                   #
