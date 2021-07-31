@@ -7,9 +7,9 @@ from tensorflow.keras.preprocessing       import image_dataset_from_directory, i
 from tensorflow.keras.preprocessing.image import load_img, img_to_array
 from tensorflow.keras.models              import load_model
 
-RESNET50_PATH  = "../models/model_0.963.h5"
-VGG19_PATH     = "../models/model_0.889.h5"
-MODEL_PATH     = RESNET50_PATH
+RESNET101_PATH = "../models/model_ResNet101_0.964.h5"
+VGG19_PATH     = "../models/model_0.929.h5"
+MODEL_PATH     = RESNET101_PATH
 PATH           = "../datasets/panamuwa"
 BATCH_SIZE     = 32
 IMG_SIZE       = (224, 224)
