@@ -15,7 +15,7 @@ from tensorflow.keras                                   import Input
 from tensorflow.keras.models                            import Model, Sequential
 from tensorflow.keras.layers                            import Dense, Dropout, Flatten, Reshape
 from tensorflow.keras.preprocessing                     import image_dataset_from_directory, image
-from tensorflow.keras.applications                      import VGG19, ResNet152
+from tensorflow.keras.applications                      import VGG19, ResNet152, EfficientNetB7
 from tensorflow.keras.layers.experimental.preprocessing import RandomFlip, RandomRotation, Rescaling
 from tensorflow.keras.optimizers                        import Adam, SGD
 from tensorflow.keras.callbacks                         import ModelCheckpoint, EarlyStopping, TensorBoard, ReduceLROnPlateau
@@ -105,6 +105,12 @@ vgg19Model = VGG19(
 )
 
 resNet50Model = ResNet152(
+  input_shape = IMG_SHAPE,
+  include_top = False,
+  weights     = "imagenet",
+)
+
+efficientNetB7 = EfficientNetB7(
   input_shape = IMG_SHAPE,
   include_top = False,
   weights     = "imagenet",
