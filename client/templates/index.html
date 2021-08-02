@@ -13,9 +13,7 @@
   </head>
 <body>
   <!--  Scripts-->
-  <script src="https://code.jquery.com/jquery-2.1.1.min.js"></script>
-  <script type="text/javascript" src="{{ url_for('static',filename='js/materialize.js') }}"></script>
-  <script type="text/javascript" src="{{ url_for('static',filename='js/init.js') }}"></script>
+
 
   <nav class="light-blue" role="navigation">
     <div class="nav-wrapper container">
@@ -35,35 +33,52 @@
   <div class="section no-pad-bot" id="index-banner">
     <div class="container">
       <br><br>
+      
       <h1 class="header center orange-text">Deep Learning Aramaic</h1>
+      
       <div class="row center">
-        <h5 class="header col s12 light">A character recognition model based on Aramaic Inscription</h5>
+        <h5 class="header col s12 light">A character recognition neural network based on Aramaic Inscriptions</h5>
       </div>
+      
       <br><br>
+
     </div>
   </div>
 
-  <div class="row center-align">
-    <div class="col s12 m6 l3 center-align">
+  <div class="row">
+    <div class="col s12 m6 l3">
       <form action="/predict" method="POST" enctype="multipart/form-data">
         
-        <div class="file-field input-field center-align">
+        <div class="file-field input-field">
 
-          <div class="btn center">
+          <div class="btn">
             <span class="center-align">Select Image</span>
             <input type="file" name="file" id="file">
           </div>
 
-          <div class="file-path-wrapper center">
-            <input class="file-path validate center-align" type="text" placeholder="Upload one or more files">
+          <div class="file-path-wrapper">
+            <input class="file-path validate" type="text" placeholder="Upload one or more files">
           </div>
 
-          <div class="center">
-            <button class="btn waves-effect waves-light center-align" type="submit" name="action">Upload
-              <i class="material-icons right">file_upload</i>
+          <div class="input-field col s12 m6">
+            <select class="icons" name="select" id="select">
+              <option value="" disabled selected>Choose a DL model</option>
+              <option value="1" data-icon="{{ url_for('static', filename = 'images/model.png') }}">Model 1</option>
+              <option value="2" data-icon="{{ url_for('static', filename = 'images/model2.png') }}">Model 2</option>
+              <option value="3" data-icon="{{ url_for('static', filename = 'images/model.png') }}">Model 3</option>
+            </select>
+            <label>Select a DL model</label>
+          </div>
+
+          <div class="input-field col s12 m6">
+            <label>                           </label>
+          </div>
+
+          <div>
+            <button class="btn waves-effect waves-light" type="submit" name="action">Upload & Test
+              <i class="material-icons right">memory</i>
             </button>
           </div>
-
         </div>
       </form>
     </div>
@@ -81,8 +96,8 @@
           <div class="icon-block">
 
             <div class="card hoverable">
-              <div class="card-image waves-effect waves-block waves-light">
-                <img class="responsive-img" height="50" src="{{ url_for('display_image', filename = data['filename']) }}">
+              <div class="card-image waves-effect waves-block waves-light center-align">
+                <img class="medium-img" src="{{ url_for('display_image', filename = data['filename']) }}">
               </div>
         
               <div class="card-content">
@@ -96,7 +111,7 @@
                   {% endfor %}
               </div>
         
-              <div class="card-image waves-effect waves-block waves-light">
+              <div class="card-content">
                 {% for prediction in data['predictions'] %}
                   <img class="small-img" src="{{ url_for('show_letter', lettername = prediction['letter']) }}"> 
                 {% endfor %}
@@ -107,6 +122,7 @@
                 <p>Source: Letter from Hadad Statue Inscription of Panamuwa I, king of Sam’al </p>
                 <p>Period: VII BCE</p>
                 <p>Craft Skills:  Experienced hand</p>
+                <p>Material:  Dolorite</p>
               </div>
             </div>
 
@@ -146,5 +162,8 @@
     </div>
   </footer>
 
+  <script src="https://code.jquery.com/jquery-2.1.1.min.js"></script>
+  <script type="text/javascript" src="{{ url_for('static',filename='js/materialize.js') }}"></script>
+  <script type="text/javascript" src="{{ url_for('static',filename='js/init.js') }}"></script>
 </body>
 </html>

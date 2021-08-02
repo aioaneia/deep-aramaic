@@ -8,8 +8,10 @@ from tensorflow.keras.preprocessing.image import load_img, img_to_array
 from tensorflow.keras.models              import load_model
 
 RESNET101_PATH = "../models/model_ResNet101_0.964.h5"
-VGG19_PATH     = "../models/model_0.929.h5"
-MODEL_PATH     = RESNET101_PATH
+RESNET152_PATH = "../models/model_ResNet152_0.929.h5"
+VGG19_PATH     = "../models/model_VGG19_0.893.h5"
+MODEL_PATH     = RESNET152_PATH
+MODELS         = []
 PATH           = "../datasets/panamuwa"
 BATCH_SIZE     = 32
 IMG_SIZE       = (224, 224)
@@ -133,7 +135,10 @@ def upload():
 @app.route('/predict', methods=['POST'])
 def predict():
   f = request.files.get('file')
+  modelV = request.form['select']
 
+  print('modelV', modelV)
+  
   if f.filename.split('.')[1] != 'png':
     return 'PNG only!', 400
     

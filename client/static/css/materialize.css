@@ -2726,8 +2726,13 @@ video.responsive-video {
   height: auto;
 }
 
+img.medium-img {
+  max-width: 100%;
+  height: auto;
+}
+
 img.small-img {
-  max-width: 20%;
+  max-width: 18%;
   height: auto;
 }
 

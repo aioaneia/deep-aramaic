@@ -1,3 +1,10 @@
+# -*- coding: utf-8 -*-
+"""
+Created on June 10 2021
+
+@author: Andrei Aioanei
+"""
+
 import numpy             as np
 import pandas            as pd
 import matplotlib.pyplot as plt
@@ -158,41 +165,6 @@ for img, _ in trainDataset.take(1):
     plt.imshow(augmented_image[0] / 255)
     plt.axis('off')
 
-##############################
-# Create a Sequential model  #
-##############################
-def create_Sequential_VGG_model():
-  model = Sequential()
-
-  vgg19Model.trainable = True
-
-  set_trainable = False
-
-  for layer in vgg19Model.layers:
-    if layer.name == 'block4_conv1':
-      set_trainable = True
-    if set_trainable:
-      layer.trainable = True
-    else:
-      layer.trainable = False
-
-  model.add(vgg19Model)
-
-  model.add(Flatten())
-  model.add(Dropout(0.30))
-
-  x = Rescaling(1.0 / 255)(x)
-
-  model.add(Dense(NR_NEURONS, activation = 'relu',  kernel_initializer = 'he_normal'))
-  model.add(Dropout(0.30))
-
-  model.add(Dense(NR_NEURONS, activation = 'relu',  kernel_initializer = 'he_normal'))
-  model.add(Dropout(0.30))
-
-  model.add(Dense(NR_CLASSES, activation='softmax', kernel_initializer = 'glorot_normal'))
-
-  return model
-
 #########################################
 # Create a model from a pre trained one #
 #########################################
@@ -218,9 +190,9 @@ def create_model(preTrainedModel):
 
   return model
 
-model = create_model(resNet50Model)
+model = create_model(vgg19Model)
 
-plot_model(model, 'models/Figurine21.png')
+# plot_model(model, 'models/Figurine21.png')
 
 #############################
 # Compile                   #
