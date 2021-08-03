@@ -121,11 +121,11 @@ def inception(x, filters):
 def auxiliary(x, name=None):
     layer = AveragePooling2D(pool_size=(5,5), strides=3, padding='valid')(x)
 
-    layer = Conv2D(filters=128, kernel_size=(1,1), strides=1, padding='same', activation='relu')(layer)
+    layer = Conv2D(filters=256, kernel_size=(1,1), strides=1, padding='same', activation='relu')(layer)
     
     layer = Flatten()(layer)
     
-    layer = Dense(units = NR_NEURONS, activation='relu')(layer)
+    layer = Dense(units = NR_NEURONS / 2, activation='relu')(layer)
     
     layer = Dropout(0.4)(layer)
     
@@ -171,7 +171,7 @@ def googlenet():
     # stage-6
     layer = Flatten()(layer)
     layer = Dropout(0.4)(layer)
-    layer = Dense(units = 256, activation='linear')(layer)
+    layer = Dense(units = 512, activation='linear')(layer)
 
     main = Dense(units = NR_CLASSES, activation = 'softmax', name='main')(layer)
     

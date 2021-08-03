@@ -27,7 +27,7 @@ PATH          = "datasets/panamuwa"
 BATCH_SIZE    = 32
 IMG_SIZE      = (224, 224)
 IMG_SHAPE     = IMG_SIZE + (3,)
-EPOCHS        = 30
+EPOCHS        = 50
 LEARNING_RATE = 0.001
 BETA_1        = 0.9
 BETA_2        = 0.999
@@ -185,10 +185,10 @@ def create_model(preTrainedModel):
   layer = Rescaling(1.0 / 255)(layer)
 
   layer = Dense(NR_NEURONS, activation = 'relu', kernel_initializer = 'he_normal')(layer)
-  layer = Dropout(0.30)(layer)
+  layer = Dropout(0.40)(layer)
 
-  layer = Dense(NR_NEURONS / 2, activation = 'relu', kernel_initializer = 'he_normal')(layer)
-  layer = Dropout(0.30)(layer)
+  layer = Dense(NR_NEURONS, activation = 'relu', kernel_initializer = 'he_normal')(layer)
+  layer = Dropout(0.40)(layer)
 
   predictions = Dense(NR_CLASSES, activation='softmax', kernel_initializer = 'glorot_normal')(layer)
 
@@ -196,7 +196,7 @@ def create_model(preTrainedModel):
 
   return model
 
-model = create_model(vgg19Model)
+model = create_model(efficientNetB7)
 
 # plot_model(model, 'models/Figurine21.png')
 

@@ -45,42 +45,45 @@
     </div>
   </div>
 
-  <div class="row">
-    <div class="col s12 m6 l3">
-      <form action="/predict" method="POST" enctype="multipart/form-data">
-        
-        <div class="file-field input-field">
+  <div class="container">
+    <div class="row">
+      <div class="col s12 m4 l6">
+        <form action="/predict" method="POST" enctype="multipart/form-data">
+          
+          <div class="file-field input-field">
 
-          <div class="btn">
-            <span class="center-align">Select Image</span>
-            <input type="file" name="file" id="file">
-          </div>
+            <div class="btn">
+              <span class="center-align">Select Image</span>
+              <input type="file" name="file" id="file">
+            </div>
 
-          <div class="file-path-wrapper">
-            <input class="file-path validate" type="text" placeholder="Upload one or more files">
-          </div>
+            <div class="file-path-wrapper">
+              <input class="file-path validate" type="text" placeholder="Upload one or more files">
+            </div>
 
-          <div class="input-field col s12 m6">
-            <select class="icons" name="select" id="select">
-              <option value="" disabled selected>Choose a DL model</option>
-              <option value="1" data-icon="{{ url_for('static', filename = 'images/model.png') }}">Model 1</option>
-              <option value="2" data-icon="{{ url_for('static', filename = 'images/model2.png') }}">Model 2</option>
-              <option value="3" data-icon="{{ url_for('static', filename = 'images/model.png') }}">Model 3</option>
-            </select>
-            <label>Select a DL model</label>
-          </div>
+            <div class="input-field col s12 m6">
+              <select class="icons" name="select" id="select">
+                <option value="" disabled selected>Choose a DL model</option>
+                <option value="1" data-icon="{{ url_for('static', filename = 'images/model.png') }}">ResNet101</option>
+                <option value="2" data-icon="{{ url_for('static', filename = 'images/model.png') }}">ResNet152</option>
+                <option value="3" data-icon="{{ url_for('static', filename = 'images/model.png') }}">VGG19</option>
+                <option value="4" data-icon="{{ url_for('static', filename = 'images/model.png') }}">EfficientNetB7</option>
+              </select>
+              <label>Select a DL model</label>
+            </div>
 
-          <div class="input-field col s12 m6">
-            <label>                           </label>
-          </div>
+            <div class="input-field col s12 m6">
+              <label>                           </label>
+            </div>
 
-          <div>
-            <button class="btn waves-effect waves-light" type="submit" name="action">Upload & Test
-              <i class="material-icons right">memory</i>
-            </button>
+            <div>
+              <button class="btn waves-effect waves-light" type="submit" name="action">Upload & Test
+                <i class="material-icons right">memory</i>
+              </button>
+            </div>
           </div>
-        </div>
-      </form>
+        </form>
+      </div>
     </div>
   </div>
 
@@ -121,6 +124,7 @@
                 <span class="card-title grey-text text-darken-4">More Information<i class="material-icons right">close</i></span>
                 <p>Source: Letter from Hadad Statue Inscription of Panamuwa I, king of Sam’al </p>
                 <p>Period: VII BCE</p>
+                <p>Location:Zincirli</p>
                 <p>Craft Skills:  Experienced hand</p>
                 <p>Material:  Dolorite</p>
               </div>
