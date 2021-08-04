@@ -12,7 +12,7 @@ app = Flask(__name__)
 RESNET101_PATH        = "../models/model_ResNet101_0.964.h5"
 RESNET152_PATH        = "../models/model_ResNet152_0.929.h5"
 VGG19_PATH            = "../models/model_VGG19_0.893.h5"
-EFFICIENT_NET_B7_PATH = "../models/model_EfficientNetB7_0.714.h5"
+EFFICIENT_NET_B7_PATH = "../models/model_EfficientNetB7_0.786.h5"
 
 resNet101Model      = load_model(RESNET101_PATH)
 resNet152Model      = load_model(RESNET152_PATH)

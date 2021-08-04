@@ -52,13 +52,13 @@
           
           <div class="file-field input-field">
 
-            <div class="btn">
-              <span class="center-align">Select Image</span>
+            <div class="btn-floating">
+              <i class="material-icons">add</i>
               <input type="file" name="file" id="file">
             </div>
 
             <div class="file-path-wrapper">
-              <input class="file-path validate" type="text" placeholder="Upload one or more files">
+              <input class="file-path validate" type="text" placeholder="Upload one image">
             </div>
 
             <div class="input-field col s12 m6">
@@ -72,12 +72,8 @@
               <label>Select a DL model</label>
             </div>
 
-            <div class="input-field col s12 m6">
-              <label>                           </label>
-            </div>
-
             <div>
-              <button class="btn waves-effect waves-light" type="submit" name="action">Upload & Test
+              <button class="btn-small waves-effect waves-light" type="submit" name="action">Upload & Test
                 <i class="material-icons right">memory</i>
               </button>
             </div>
@@ -107,18 +103,28 @@
                 <span class="card-title activator grey-text text-darken-4">
                   Predictions<i class="material-icons right">more_vert</i>
                 </span>
-                  {% for prediction in data['predictions'] %}
-                  <p>
-                    <a href="">{{ prediction['letter'] }} <span class="badge">{{ prediction['prediction'] }}</span></a>
-                  </p>
-                  {% endfor %}
-              </div>
-        
-              <div class="card-content">
+                
                 {% for prediction in data['predictions'] %}
-                  <img class="small-img" src="{{ url_for('show_letter', lettername = prediction['letter']) }}"> 
+                <p>
+                  <a href="">{{ prediction['letter'] }} <span class="badge">{{ prediction['prediction'] }}</span></a>
+                </p>
                 {% endfor %}
+
+                {% for prediction in data['predictions'] %}
+                <img class="small-img" src="{{ url_for('show_letter', lettername = prediction['letter']) }}"> 
+                {% endfor %}
+
+                <br></br>
+
+                <p>
+                  <label>
+                    <input type="checkbox" class="filled-in" checked="checked" />
+                    <span>Validate</span>
+                  </label>
+                </p>
               </div>
+
+              
 
               <div class="card-reveal">
                 <span class="card-title grey-text text-darken-4">More Information<i class="material-icons right">close</i></span>

@@ -15,7 +15,7 @@ from tensorflow.keras                                   import Input
 from tensorflow.keras.models                            import Model, Sequential
 from tensorflow.keras.layers                            import Dense, Dropout, Flatten, Reshape
 from tensorflow.keras.preprocessing                     import image_dataset_from_directory, image
-from tensorflow.keras.applications                      import VGG19, ResNet152, EfficientNetB7
+from tensorflow.keras.applications                      import VGG19, ResNet152, EfficientNetB7, NASNetLarge
 from tensorflow.keras.layers.experimental.preprocessing import RandomFlip, RandomRotation, Rescaling
 from tensorflow.keras.optimizers                        import Adam, SGD
 from tensorflow.keras.callbacks                         import ModelCheckpoint, EarlyStopping, TensorBoard, ReduceLROnPlateau
@@ -116,6 +116,12 @@ efficientNetB7 = EfficientNetB7(
   weights     = "imagenet",
 )
 
+nASNetLarge = NASNetLarge(
+  input_shape = (331, 331, 3),
+  include_top = False,
+  weights     = "imagenet",
+)
+
 earlyStop = EarlyStopping(
   monitor  = 'val_accuracy', 
   patience = 10
@@ -196,7 +202,7 @@ def create_model(preTrainedModel):
 
   return model
 
-model = create_model(efficientNetB7)
+model = create_model(nASNetLarge)
 
 # plot_model(model, 'models/Figurine21.png')
 
