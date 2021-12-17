@@ -1,47 +1,58 @@
+# -*- coding: utf-8 -*-
+"""
+Created on June 10 2021
+
+@author: Andrei Aioanei
+"""
+
 import numpy             as np
 import pandas            as pd
 import matplotlib.pyplot as plt
 import tensorflow        as tf
 import os
 
-from tensorflow.keras                                   import Input
 from tensorflow.keras.models                            import Model, Sequential
-from tensorflow.keras.layers                            import MaxPooling2D, Dense, Dropout, Flatten, GlobalAveragePooling2D, Reshape
-from tensorflow.keras.preprocessing                     import image_dataset_from_directory, image
-from tensorflow.keras.preprocessing.image               import load_img, img_to_array
-from tensorflow.keras.applications                      import VGG19, ResNet50
-from tensorflow.keras.models                            import load_model
-from tensorflow.keras.layers.experimental.preprocessing import RandomFlip, RandomRotation, Rescaling
-from tensorflow.keras.optimizers                        import Adam, SGD
-from tensorflow.keras.callbacks                         import ModelCheckpoint, EarlyStopping, TensorBoard
-from tensorflow.keras.losses                            import SparseCategoricalCrossentropy, CategoricalCrossentropy
-from tensorflow.data.experimental                       import cardinality
-
-from keras_adabound import AdaBound
+from tensorflow.keras.layers                            import Dense, Dropout, Flatten, Conv2D, MaxPool2D
+from tensorflow.keras.preprocessing                     import image_dataset_from_directory
+from tensorflow.keras.applications                      import VGG19, ResNet152, EfficientNetB7
+from tensorflow.keras.layers.experimental.preprocessing import RandomFlip, RandomRotation, Rescaling, Resizing, Rescaling, RandomZoom, RandomTranslation
+from tensorflow.keras.optimizers                        import Adam
+from tensorflow.keras.callbacks                         import ModelCheckpoint, EarlyStopping, TensorBoard, ReduceLROnPlateau
+from tensorflow.keras.losses                            import SparseCategoricalCrossentropy
+from tensorflow.keras.utils                             import plot_model
 
 PATH          = "datasets/panamuwa"
 BATCH_SIZE    = 32
 IMG_SIZE      = (224, 224)
 IMG_SHAPE     = IMG_SIZE + (3,)
-EPOCHS        = 35
+EPOCHS        = 1
 LEARNING_RATE = 0.001
 BETA_1        = 0.9
 BETA_2        = 0.999
 NR_CLASSES    = 23
-NR_NEURONS    = 6 * 1024
+NR_NEURONS    = 2 * 1024
 WEIGHTS       = 'imagenet'
 POOLING       = 'avg'
 AUTOTUNE      = tf.data.AUTOTUNE
+MODEL_NAME    = 'models/Figurine21'
 
 TRAIN_DIR      = os.path.join(PATH, 'train')
 VALIDATION_DIR = os.path.join(PATH, 'valid')
 TEST_DIR       = os.path.join(PATH, 'test')
 
-dataAugmentation = Sequential([
-  RandomFlip('horizontal'),
-  RandomRotation(0.1),
-])
 
+with tf.device('/cpu:0'):
+  dataAugmentation = Sequential([
+    Resizing(224, 224),
+    RandomFlip('horizontal_and_vertical'),
+    RandomRotation(0.2),
+    RandomZoom(height_factor=  0.2, width_factor = 0.2),
+    RandomTranslation(height_factor = 0.2, width_factor = 0.2)
+  ])
+
+# convert the image matrices to a 0–1 range,  
+# resize all images to 224x224 with three color channels
+# lower the batch size to 32 for memory concerns
 trainDataset = image_dataset_from_directory(
   TRAIN_DIR,
   validation_split = 0.2,
@@ -51,8 +62,6 @@ trainDataset = image_dataset_from_directory(
   batch_size       = BATCH_SIZE,
   shuffle          = True
 )
-
-augmentedTrainDataset = trainDataset.map(lambda x, y: (dataAugmentation(x, training = True), y))
 
 validationDataset = image_dataset_from_directory(
   VALIDATION_DIR,
@@ -64,8 +73,6 @@ validationDataset = image_dataset_from_directory(
   batch_size       = BATCH_SIZE
 )
 
-augmentedValidationDataset = validationDataset.map(lambda x, y: (dataAugmentation(x, training = True), y))
-
 testDataset = image_dataset_from_directory(
   TEST_DIR,
   shuffle    = True, 
@@ -73,28 +80,35 @@ testDataset = image_dataset_from_directory(
   image_size = IMG_SIZE
 )
 
-classNames = trainDataset.class_names
-train_num  = cardinality(trainDataset)
-test_num   = cardinality(validationDataset)
-valid_num  = cardinality(testDataset)
+# trainDataset               = trainDataset.prefetch(buffer_size = tf.data.experimental.AUTOTUNE)
+# validationDataset          = validationDataset.prefetch(buffer_size = tf.data.experimental.AUTOTUNE)
 
+augmentTrainDataset        = trainDataset.map(lambda x, y: (dataAugmentation(x, training = True), y))
+augmentValidationDataset   = validationDataset.map(lambda x, y: (dataAugmentation(x, training = True), y))
+
+classNames = trainDataset.class_names
+train_num  = tf.data.experimental.cardinality(trainDataset)
+test_num   = tf.data.experimental.cardinality(validationDataset)
+valid_num  = tf.data.experimental.cardinality(testDataset)
 
 print('Number of train batches:      %d' % train_num)
 print('Number of validation batches: %d' % test_num)
 print('Number of test batches:       %d' % valid_num)
 
+############################
+# Optimisers
+############################
 
-AdamOpt = Adam(
+ADAM_OPT = Adam(
   learning_rate = LEARNING_RATE, 
   beta_1        = BETA_1, 
   beta_2        = BETA_2, 
   epsilon       = 1e-08
 )
 
-AdaOpt = AdaBound(
-  learning_rate = 0.001, 
-  final_lr      = 0.1
-)
+############################
+# Pre-trained Models
+############################
 
 vgg19Model = VGG19(
   input_shape = IMG_SHAPE,
@@ -102,17 +116,50 @@ vgg19Model = VGG19(
   weights     = "imagenet",
 )
 
-resNet50Model = ResNet50(
+resNet50Model = ResNet152(
   input_shape = IMG_SHAPE,
   include_top = False,
   weights     = "imagenet",
 )
 
-# efficientNetB7Model = efn.EfficientNetB7(
-#   input_shape = IMG_SHAPE,
-#   include_top = False,
-#   weights     = "imagenet",
-# )
+efficientNetB7 = EfficientNetB7(
+  input_shape = IMG_SHAPE,
+  include_top = False,
+  weights     = "imagenet",
+)
+
+############################
+# Settings
+############################
+
+earlyStop = EarlyStopping(
+  monitor  = 'val_accuracy', 
+  patience = 10
+)
+
+checkpointer = ModelCheckpoint(
+  filepath          = 'models/model_{val_accuracy:.3f}.h5',
+  save_best_only    = True,
+  save_weights_only = False,
+  monitor           = 'val_accuracy'
+)
+
+reduceLR = ReduceLROnPlateau( 
+  monitor  = 'accuracy',
+  factor   = 0.1,
+  patience = 2,
+)
+
+tensorboard = TensorBoard(
+  log_dir                = "./logs",
+  write_graph            = True,
+  write_images           = False,
+  #write_steps_per_second = False,
+  update_freq            = "epoch",
+  profile_batch          = 2,
+  embeddings_freq        = 0,
+  embeddings_metadata    = None
+)
 
 plt.figure(figsize = (12, 12))
 
@@ -140,85 +187,71 @@ for img, _ in trainDataset.take(1):
     plt.imshow(augmented_image[0] / 255)
     plt.axis('off')
 
-#############################
-# Create a VGG model        #
-#############################
-def create_Sequential_VGG19_model():
-  model = Sequential()
+#########################################
+# Create an architecture model #
+#########################################
 
-  # for layer in vgg19Model.layers[:-4]:
-  #   layer.trainable = False
-
-  for layer in vgg19Model.layers:
-    layer.trainable = False
-
-  model.add(vgg19Model)
-
-  model.add(Flatten())
-
-  model.add(Dense(NR_NEURONS,       activation = 'relu',  kernel_initializer = 'he_normal'))
-  model.add(Dropout(0.30))
-
-  model.add(Dense(NR_NEURONS,       activation = 'relu',  kernel_initializer = 'he_normal'))
-  model.add(Dropout(0.30))
-
-  model.add(Dense(NR_CLASSES, activation='softmax', kernel_initializer = 'glorot_normal'))
+def create_sequential_model():
+  model_1 = tf.keras.Sequential([
+    Conv2D(filters=32, kernel_size=(3, 3), input_shape=(224, 224, 3), activation='relu'),
+    
+    Conv2D(filters=32, kernel_size=(3, 3), activation='relu'),
+    
+    MaxPool2D(pool_size=(2, 2), padding='same'),
+    
+    Conv2D(filters=64, kernel_size=(3, 3), activation='relu'),
+    
+    Conv2D(filters=64, kernel_size=(3, 3), activation='relu'),
+    
+    MaxPool2D(pool_size=(2, 2), padding='same'),
+    
+    
+    Flatten(),
+    
+    Dense(units=512, activation='relu'),
+    Dropout(rate=0.3),
+    Dense(units=128),
+    Dense(NR_CLASSES=2, activation='softmax')
+  ])
 
   return model
 
-#############################
-# Create a VGG model        #
-#############################
-def create_VGG19_model():
-  for layer in vgg19Model.layers:
+#########################################
+# Create a model from a pre trained one #
+#########################################
+
+def create_from_trained_model(preTrainedModel):
+  for layer in preTrainedModel.layers:
     layer.trainable = False
 
-  x = Flatten()(vgg19Model.layers[-1].output)
+  layer = Flatten()(preTrainedModel.layers[-1].output)
   
-  x = Rescaling(1.0 / 255)(x)
+  layer = Dropout(0.30)(layer)
 
-  x = Dense(NR_NEURONS, activation = 'relu', kernel_initializer = 'he_normal')(x)
-  x = Dropout(0.30)(x)
+  layer = Rescaling(1.0 / 255)(layer)
 
-  x = Dense(NR_NEURONS, activation = 'relu', kernel_initializer = 'he_normal')(x)
-  x = Dropout(0.30)(x)
+  layer = Dense(NR_NEURONS, activation = 'relu', kernel_initializer = 'he_normal')(layer)
+  layer = Dropout(0.40)(layer)
 
-  predictions = Dense(NR_CLASSES, activation='softmax', kernel_initializer = 'glorot_normal')(x)
+  layer = Dense(NR_NEURONS, activation = 'relu', kernel_initializer = 'he_normal')(layer)
+  layer = Dropout(0.40)(layer)
 
-  model = Model(inputs = vgg19Model.input, outputs = predictions)
+  predictions = Dense(NR_CLASSES, activation='softmax', kernel_initializer = 'glorot_normal')(layer)
 
-  return model
-
-#############################
-# Create a ResNet model     #
-#############################
-def create_ResNet50_model():
-  for layer in resNet50Model.layers:
-    layer.trainable = False
-
-  x = Flatten()(resNet50Model.layers[-1].output)
-  
-  x = Rescaling(1.0 / 255)(x)
-
-  x = Dense(NR_NEURONS, activation = 'relu', kernel_initializer = 'he_normal')(x)
-  x = Dropout(0.30)(x)
-
-  x = Dense(NR_NEURONS, activation = 'relu', kernel_initializer = 'he_normal')(x)
-  x = Dropout(0.30)(x)
-
-  predictions = Dense(NR_CLASSES, activation='softmax', kernel_initializer = 'glorot_normal')(x)
-
-  model = Model(inputs = resNet50Model.input, outputs = predictions)
+  model = Model(inputs = preTrainedModel.input, outputs = predictions)
 
   return model
 
-model = create_VGG19_model()
+model = create_from_trained_model(efficientNetB7)
+
+# plot_model(model, 'models/Figurine21.png')
 
 #############################
 # Compile                   #
 #############################
+
 model.compile(
-  optimizer = AdamOpt,
+  optimizer = ADAM_OPT,
   loss      = SparseCategoricalCrossentropy(),
   metrics   = ['accuracy']
 )
@@ -232,36 +265,14 @@ model.summary()
 # Train                     #
 #############################
 
-earlyStop = EarlyStopping(
-  monitor  = 'val_accuracy', 
-  patience = 10
-)
-
-checkpointer = ModelCheckpoint(
-  filepath          = 'models/model_{val_accuracy:.3f}.h5',
-  save_best_only    = True,
-  save_weights_only = False,
-  monitor           = 'val_accuracy'
-)
-
-tensorboard = TensorBoard(
-  log_dir                = "./logs",
-  histogram_freq         = 0,
-  write_graph            = True,
-  write_images           = False,
-  write_steps_per_second = False,
-  update_freq            = "epoch",
-  profile_batch          = 2,
-  embeddings_freq        = 0,
-  embeddings_metadata    = None
-)
-
 history = model.fit(
-  augmentedTrainDataset,
+  augmentTrainDataset,
+  validation_data  = augmentValidationDataset,
   epochs           = EPOCHS,
-  validation_data  = augmentedValidationDataset,
-  callbacks        = [earlyStop, checkpointer, tensorboard]
+  callbacks        = [earlyStop, reduceLR, checkpointer, tensorboard],
 )
+
+model.save(MODEL_NAME)
 
 #############################
 # Metrics                   #
