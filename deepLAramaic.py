@@ -11,28 +11,26 @@ import matplotlib.pyplot as plt
 import tensorflow        as tf
 import os
 
-from tensorflow.keras                                   import Input
 from tensorflow.keras.models                            import Model, Sequential
-from tensorflow.keras.layers                            import Dense, Dropout, Flatten, Reshape
-from tensorflow.keras.preprocessing                     import image_dataset_from_directory, image
-from tensorflow.keras.applications                      import VGG19, ResNet152, EfficientNetB7, NASNetLarge
-from tensorflow.keras.layers.experimental.preprocessing import RandomFlip, RandomRotation, Rescaling
-from tensorflow.keras.optimizers                        import Adam, SGD
+from tensorflow.keras.layers                            import Dense, Dropout, Flatten, Conv2D, MaxPool2D
+from tensorflow.keras.preprocessing                     import image_dataset_from_directory
+from tensorflow.keras.applications                      import VGG19, ResNet152, EfficientNetB7
+from tensorflow.keras.layers.experimental.preprocessing import RandomFlip, RandomRotation, Rescaling, Resizing, Rescaling, RandomZoom, RandomTranslation
+from tensorflow.keras.optimizers                        import Adam
 from tensorflow.keras.callbacks                         import ModelCheckpoint, EarlyStopping, TensorBoard, ReduceLROnPlateau
 from tensorflow.keras.losses                            import SparseCategoricalCrossentropy
-from tensorflow.data.experimental                       import cardinality
 from tensorflow.keras.utils                             import plot_model
 
 PATH          = "datasets/panamuwa"
 BATCH_SIZE    = 32
 IMG_SIZE      = (224, 224)
 IMG_SHAPE     = IMG_SIZE + (3,)
-EPOCHS        = 50
+EPOCHS        = 1
 LEARNING_RATE = 0.001
 BETA_1        = 0.9
 BETA_2        = 0.999
 NR_CLASSES    = 23
-NR_NEURONS    = 6 * 1024
+NR_NEURONS    = 2 * 1024
 WEIGHTS       = 'imagenet'
 POOLING       = 'avg'
 AUTOTUNE      = tf.data.AUTOTUNE
@@ -42,11 +40,19 @@ TRAIN_DIR      = os.path.join(PATH, 'train')
 VALIDATION_DIR = os.path.join(PATH, 'valid')
 TEST_DIR       = os.path.join(PATH, 'test')
 
-dataAugmentation = Sequential([
-  RandomFlip('horizontal'),
-  RandomRotation(0.1),
-])
 
+with tf.device('/cpu:0'):
+  dataAugmentation = Sequential([
+    Resizing(224, 224),
+    RandomFlip('horizontal_and_vertical'),
+    RandomRotation(0.2),
+    RandomZoom(height_factor=  0.2, width_factor = 0.2),
+    RandomTranslation(height_factor = 0.2, width_factor = 0.2)
+  ])
+
+# convert the image matrices to a 0–1 range,  
+# resize all images to 224x224 with three color channels
+# lower the batch size to 32 for memory concerns
 trainDataset = image_dataset_from_directory(
   TRAIN_DIR,
   validation_split = 0.2,
@@ -56,8 +62,6 @@ trainDataset = image_dataset_from_directory(
   batch_size       = BATCH_SIZE,
   shuffle          = True
 )
-
-augmentedTrainDataset = trainDataset.map(lambda x, y: (dataAugmentation(x, training = True), y))
 
 validationDataset = image_dataset_from_directory(
   VALIDATION_DIR,
@@ -69,8 +73,6 @@ validationDataset = image_dataset_from_directory(
   batch_size       = BATCH_SIZE
 )
 
-augmentedValidationDataset = validationDataset.map(lambda x, y: (dataAugmentation(x, training = True), y))
-
 testDataset = image_dataset_from_directory(
   TEST_DIR,
   shuffle    = True, 
@@ -78,25 +80,35 @@ testDataset = image_dataset_from_directory(
   image_size = IMG_SIZE
 )
 
+# trainDataset               = trainDataset.prefetch(buffer_size = tf.data.experimental.AUTOTUNE)
+# validationDataset          = validationDataset.prefetch(buffer_size = tf.data.experimental.AUTOTUNE)
+
+augmentTrainDataset        = trainDataset.map(lambda x, y: (dataAugmentation(x, training = True), y))
+augmentValidationDataset   = validationDataset.map(lambda x, y: (dataAugmentation(x, training = True), y))
+
 classNames = trainDataset.class_names
-train_num  = cardinality(trainDataset)
-test_num   = cardinality(validationDataset)
-valid_num  = cardinality(testDataset)
+train_num  = tf.data.experimental.cardinality(trainDataset)
+test_num   = tf.data.experimental.cardinality(validationDataset)
+valid_num  = tf.data.experimental.cardinality(testDataset)
 
 print('Number of train batches:      %d' % train_num)
 print('Number of validation batches: %d' % test_num)
 print('Number of test batches:       %d' % valid_num)
 
-AdamOpt = Adam(
+############################
+# Optimisers
+############################
+
+ADAM_OPT = Adam(
   learning_rate = LEARNING_RATE, 
   beta_1        = BETA_1, 
   beta_2        = BETA_2, 
   epsilon       = 1e-08
 )
 
-SGD_OPT = SGD(
-  learning_rate=0.1
-)
+############################
+# Pre-trained Models
+############################
 
 vgg19Model = VGG19(
   input_shape = IMG_SHAPE,
@@ -116,11 +128,9 @@ efficientNetB7 = EfficientNetB7(
   weights     = "imagenet",
 )
 
-nASNetLarge = NASNetLarge(
-  input_shape = (331, 331, 3),
-  include_top = False,
-  weights     = "imagenet",
-)
+############################
+# Settings
+############################
 
 earlyStop = EarlyStopping(
   monitor  = 'val_accuracy', 
@@ -144,7 +154,7 @@ tensorboard = TensorBoard(
   log_dir                = "./logs",
   write_graph            = True,
   write_images           = False,
-  write_steps_per_second = False,
+  #write_steps_per_second = False,
   update_freq            = "epoch",
   profile_batch          = 2,
   embeddings_freq        = 0,
@@ -178,9 +188,39 @@ for img, _ in trainDataset.take(1):
     plt.axis('off')
 
 #########################################
+# Create an architecture model #
+#########################################
+
+def create_sequential_model():
+  model_1 = tf.keras.Sequential([
+    Conv2D(filters=32, kernel_size=(3, 3), input_shape=(224, 224, 3), activation='relu'),
+    
+    Conv2D(filters=32, kernel_size=(3, 3), activation='relu'),
+    
+    MaxPool2D(pool_size=(2, 2), padding='same'),
+    
+    Conv2D(filters=64, kernel_size=(3, 3), activation='relu'),
+    
+    Conv2D(filters=64, kernel_size=(3, 3), activation='relu'),
+    
+    MaxPool2D(pool_size=(2, 2), padding='same'),
+    
+    
+    Flatten(),
+    
+    Dense(units=512, activation='relu'),
+    Dropout(rate=0.3),
+    Dense(units=128),
+    Dense(NR_CLASSES=2, activation='softmax')
+  ])
+
+  return model
+
+#########################################
 # Create a model from a pre trained one #
 #########################################
-def create_model(preTrainedModel):
+
+def create_from_trained_model(preTrainedModel):
   for layer in preTrainedModel.layers:
     layer.trainable = False
 
@@ -202,15 +242,16 @@ def create_model(preTrainedModel):
 
   return model
 
-model = create_model(nASNetLarge)
+model = create_from_trained_model(efficientNetB7)
 
 # plot_model(model, 'models/Figurine21.png')
 
 #############################
 # Compile                   #
 #############################
+
 model.compile(
-  optimizer = AdamOpt,
+  optimizer = ADAM_OPT,
   loss      = SparseCategoricalCrossentropy(),
   metrics   = ['accuracy']
 )
@@ -225,9 +266,9 @@ model.summary()
 #############################
 
 history = model.fit(
-  augmentedTrainDataset,
+  augmentTrainDataset,
+  validation_data  = augmentValidationDataset,
   epochs           = EPOCHS,
-  validation_data  = augmentedValidationDataset,
   callbacks        = [earlyStop, reduceLR, checkpointer, tensorboard],
 )
 
