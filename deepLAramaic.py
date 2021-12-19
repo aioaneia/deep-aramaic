@@ -21,6 +21,9 @@ from tensorflow.keras.callbacks                         import ModelCheckpoint, 
 from tensorflow.keras.losses                            import SparseCategoricalCrossentropy
 from tensorflow.keras.utils                             import plot_model
 
+from efficientnet.keras                                 import EfficientNetL2
+
+
 PATH          = "datasets/panamuwa"
 BATCH_SIZE    = 32
 IMG_SIZE      = (224, 224)
@@ -126,6 +129,12 @@ efficientNetB7 = EfficientNetB7(
   input_shape = IMG_SHAPE,
   include_top = False,
   weights     = "imagenet",
+)
+
+efficientNetL2 = EfficientNetL2(
+  weights     = "./models/model_efficientnetL2.h5", 
+  include_top = False,
+  drop_connect_rate = 0
 )
 
 ############################
