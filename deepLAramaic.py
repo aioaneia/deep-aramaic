@@ -17,22 +17,23 @@ from tensorflow.keras.preprocessing                     import image_dataset_fro
 from tensorflow.keras.applications                      import VGG19, ResNet152, EfficientNetB7
 from tensorflow.keras.layers.experimental.preprocessing import RandomFlip, RandomRotation, Rescaling, Resizing, Rescaling, RandomZoom, RandomTranslation
 from tensorflow.keras.optimizers                        import Adam
-from tensorflow.keras.callbacks                         import ModelCheckpoint, EarlyStopping, TensorBoard, ReduceLROnPlateau
+from tensorflow.keras.callbacks                         import ModelCheckpoint, EarlyStopping, TensorBoard, ReduceLROnPlateau, LearningRateScheduler
 from tensorflow.keras.losses                            import SparseCategoricalCrossentropy
 from tensorflow.keras.utils                             import plot_model
 
 from efficientnet.keras                                 import EfficientNetL2
 
 
-PATH          = "datasets/panamuwa"
+#PATH          = "datasets/panamuwa"
+PATH          = "datasets/synthetic"
 BATCH_SIZE    = 32
 IMG_SIZE      = (224, 224)
 IMG_SHAPE     = IMG_SIZE + (3,)
-EPOCHS        = 1
-LEARNING_RATE = 0.001
+EPOCHS        = 30
+LEARNING_RATE = 0.007
 BETA_1        = 0.9
 BETA_2        = 0.999
-NR_CLASSES    = 23
+NR_CLASSES    = 22
 NR_NEURONS    = 2 * 1024
 WEIGHTS       = 'imagenet'
 POOLING       = 'avg'
@@ -132,31 +133,41 @@ efficientNetB7 = EfficientNetB7(
 )
 
 efficientNetL2 = EfficientNetL2(
-  weights     = "./models/model_efficientnetL2.h5", 
+  input_shape = IMG_SHAPE,
+  weights     = "./models/model_EfficientNetL2_notop.h5", 
   include_top = False,
   drop_connect_rate = 0
 )
 
 ############################
-# Settings
+# Callbacks Settings
 ############################
 
 earlyStop = EarlyStopping(
-  monitor  = 'val_accuracy', 
-  patience = 10
+  monitor   = 'val_accuracy',
+  mode      = 'max',
+  min_delta = 0.001,
+  patience  = 10
 )
 
 checkpointer = ModelCheckpoint(
   filepath          = 'models/model_{val_accuracy:.3f}.h5',
   save_best_only    = True,
   save_weights_only = False,
-  monitor           = 'val_accuracy'
+  mode              = 'max', 
+  monitor           = 'val_accuracy',
+  verbose           = 1
 )
 
 reduceLR = ReduceLROnPlateau( 
-  monitor  = 'accuracy',
+  monitor  = 'val_loss',
   factor   = 0.1,
-  patience = 2,
+  patience = 3,
+  min_lr   = 0.00001
+)
+
+learningRate = LearningRateScheduler(
+  lambda epoch: 1e-3 * 10 ** (epoch / 30)
 )
 
 tensorboard = TensorBoard(
@@ -251,7 +262,7 @@ def create_from_trained_model(preTrainedModel):
 
   return model
 
-model = create_from_trained_model(efficientNetB7)
+model = create_from_trained_model(efficientNetB7) # efficientNetL2, efficientNetB7
 
 # plot_model(model, 'models/Figurine21.png')
 

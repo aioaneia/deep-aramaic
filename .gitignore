@@ -29,3 +29,5 @@ Thumbs.db
 # DeepLearning files
 ######################
 *.h5
+
+datasets/

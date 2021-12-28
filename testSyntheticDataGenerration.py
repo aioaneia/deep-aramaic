@@ -1,84 +1,106 @@
 
 from generateSyntheticDataSet import *
+from degrade                  import degrade_img
+from augment                  import augment_letter, augment_bkg
 
-### Test Pipeline ####
-def testPipeline():
 
-    # 1. Prepare Colors #
+def test_background_augumentation():
     bgColors, fgColors = prepareColors(TEXTURE_LETTERS, TEXTURE_INSCRIPTIONS)
 
-    
-    # 2. Test Texture Backgrounds
-    background = getRandomBackground(BACKGROUNDS_PATH)
+    background = getackground(BACKGROUNDS_PATH)
 
-    showImage(background)
+    show_image(background)
 
-    # 2. Test Synthetic Backgrounds
-    syntheticBackground = createBackground(bgColors, IMG_WIDTH, IMG_HEIGHT)
+    aug_background = augment_bkg(background)
 
-    showImage(syntheticBackground)
+    show_image(aug_background)
 
+    synthetic_background = createBackground(bgColors, IMG_WIDTH, IMG_HEIGHT)
 
-    # 3. Test Foregrounds
+    show_image(synthetic_background)
 
-    letterPath = LETTERS_PATH + 'Ayin.png'
+    aug_synthetic_background = augment_bkg(synthetic_background)
+
+    show_image(aug_synthetic_background)
+
+def test_foreground_augumentation():
+    letterPath = LETTERS_PATH + 'Bet.png'
 
     foreground = getLetterForeground(letterPath)
 
-    showImage(foreground)
+    show_image(foreground)
 
-    # 3. Test Synthetic Foreground
     newForeground = foregroundAugmentation(foreground)
 
-    showImage(newForeground)
+    show_image(newForeground)
 
+    aug_foreground = augment_letter(foreground)
+
+    show_image(aug_foreground)
+
+### Test Pipeline ####
+def testPipeline():
+    bgColors, fgColors = prepareColors(TEXTURE_LETTERS, TEXTURE_INSCRIPTIONS)
+
+    background = getRandomBackground(BACKGROUNDS_PATH)
+
+    show_image(background)
+
+    aug_background = augment_bkg(background)
+
+    show_image(aug_background)
+
+    syntheticBackground = createBackground(bgColors, IMG_WIDTH, IMG_HEIGHT)
+
+    show_image(syntheticBackground)
+
+    letterPath = LETTERS_PATH + 'Bet.png'
+
+    foreground = getLetterForeground(letterPath)
+
+    show_image(foreground)
+
+    newForeground = foregroundAugmentation(foreground)
+
+    show_image(newForeground)
 
     mask_new = getForegroundMask(newForeground)
 
-    showImage(mask_new)
+    show_image(mask_new)
 
+    composite, hard_mask, bbox = createLayeredImage1(newForeground, mask_new, background)
 
-    # 4. Compose image
-    composed_image = createLayeredImage1(newForeground, mask_new, background)
-
-    showImage(composed_image)
-
-    nz = np.nonzero(mask_new)
-    bbox = [np.min(nz[0]), np.min(nz[1]), np.max(nz[0]), np.max(nz[1])]
+    show_image(composite)
 
     x = bbox[1]
     y = bbox[0]
     width = bbox[3] - bbox[1]
     height = bbox[2] - bbox[0]
 
-    plt.imshow(composed_image)
-    plt.gca().add_patch(Rectangle(
-        (x,y), width, height, linewidth = 1, edgecolor = 'r', facecolor = 'none'))
+    rectangle = Rectangle((x,y), width, height, linewidth = 1, edgecolor = 'r', facecolor = 'none')
+
+    plt.imshow(composite)
+    plt.gca().add_patch(rectangle)
     plt.axis('off')
     plt.show()
 
-    # For visualization
-    # fig, axes = plt.subplots(nrows = 1, ncols = 4, figsize = (50, 30))
-
-    # for i in range(4):
-    #     foreground_new = foregroundAugmentation(foreground)
-    #     mask_new       = getForegroundMask(foreground_new)
-    #     background     = io.imread(BACKGROUNDS_PATH + os.listdir(BACKGROUNDS_PATH)[i]) / 255.0
-    #     composed_image = compose(foreground_new, mask_new, background)
-
-    #     axes[i].imshow(composed_image)
-    #     axes[i].set_axis_off()
-
-    # plt.show()
 
 def testCreateNaturalImageForTraining():
+    letterPath = LETTERS_PATH + 'Ayin.png'
+    letterName = 'Ayin'
+    i = 0
+    letterTrainPath = DATASET_PATH + 'train/' + letterName
+
+    composite, imageName, bbox = create_natural_image_for_testing(letterPath, letterName, i, letterTrainPath)
+
+    show_image(composite)
+
+
+def testCreateNaturalImageForTrainingForAll():
 
     lettersFileNames = [f for f in os.listdir(LETTERS_PATH) if f.endswith('.png')]
 
     for f in lettersFileNames:
-        
-        print(f)
-
         pathname, extension = os.path.splitext(f)
         letterName          = pathname.split('/')[-1]
 
@@ -90,39 +112,59 @@ def testCreateNaturalImageForTraining():
         print(letterPath)
         print(letterTrainPath)
 
-        image, imageName, rectangle = createNaturalImageForTraining(letterPath, letterName, 0, letterTrainPath)
+        composite, imageName, bbox = create_natural_image_for_testing(letterPath, letterName, 0, letterTrainPath)
 
-        print(imageName)
+        show_image(composite)
 
-        showImage(image)
+        x = bbox[1]
+        y = bbox[0]
+        width = bbox[3] - bbox[1]
+        height = bbox[2] - bbox[0]
 
-        plt.imshow(image)
+        rectangle = Rectangle((x,y), width, height, linewidth = 1, edgecolor = 'r', facecolor = 'none')
+
+        plt.imshow(composite)
         plt.gca().add_patch(rectangle)
         plt.axis('off')
         plt.show()
 
-        io.imsave(imageName, image)
-
 
 def testCreateSyntheticImageForTraining():
-
     bgColors, fgColors = prepareColors(TEXTURE_LETTERS, TEXTURE_INSCRIPTIONS)
 
-    letterColorRange = [[180,230],[50,130],[0,5]]
+    letterName = 'Mem'
+    letterPath = LETTERS_PATH + 'Mem.png'
 
-    letterName = 'Ayin'
+    image, imageName = create_synthetic_image_for_training(
+        letterPath, 
+        letterName, 
+        0, 
+        bgColors, 
+        fgColors, 
+        DATASET_PATH + 'train/' + letterName)
 
-    image, imageName = createSyntheticImageForTraining(letterName, 0, bgColors, fgColors, letterColorRange, DATASET_PATH)
-
-    showImage(image)
+    show_image(image)
 
 def testCreateTrainingDataset():
     createTrainingDataset(30)
 
+
+
+
+#test_background_augumentation()
+
+# for f in range(10):
+#     test_foreground_augumentation()
+
 #testPipeline()
 
-testCreateNaturalImageForTraining()
+#testCreateNaturalImageForTraining()
 
-#testCreateSyntheticImageForTraining()
+#testCreateNaturalImageForTrainingForAll()
+
+#testCreateNaturalImageForTraining()
+
+for f in range(10):
+    testCreateSyntheticImageForTraining()
 
 # testCreateTrainingDataset()
