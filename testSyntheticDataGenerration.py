@@ -145,26 +145,36 @@ def testCreateSyntheticImageForTraining():
 
     show_image(image)
 
-def testCreateTrainingDataset():
-    createTrainingDataset(30)
+def test_generate_training_dataset():
+    generate_training_dataset(2)
 
+def test_generate_validation_dataset():
+    generate_validation_dataset(2)
 
+def main():
+    
+    setup_folder_structure()
 
+    for f in range(10):
+      test_background_augumentation()
 
-#test_background_augumentation()
+    # for f in range(10):
+    #     test_foreground_augumentation()
 
-# for f in range(10):
-#     test_foreground_augumentation()
+    #testPipeline()
 
-#testPipeline()
+    #testCreateNaturalImageForTraining()
 
-#testCreateNaturalImageForTraining()
+    #testCreateNaturalImageForTrainingForAll()
 
-#testCreateNaturalImageForTrainingForAll()
+    #testCreateNaturalImageForTraining()
 
-#testCreateNaturalImageForTraining()
+    # for f in range(10):
+    #     testCreateSyntheticImageForTraining()
 
-for f in range(10):
-    testCreateSyntheticImageForTraining()
+    #test_generate_training_dataset()
 
-# testCreateTrainingDataset()
+    #test_generate_validation_dataset()
+
+if __name__ == "__main__":
+  main()

@@ -2,6 +2,7 @@ import os
 import errno
 import random
 import pathlib
+import csv
 import numpy             as np
 import skimage.io        as io
 import skimage.transform as transform
@@ -27,6 +28,12 @@ dir_train = dir_data.joinpath('train')
 dir_valid = dir_data.joinpath('valid')
 dir_test  = dir_data.joinpath('test')
 
+# Output the annotations csv
+train_annotations_csv_path = os.path.join(dir_train, 'annotations.csv')
+
+# Output the annotations csv
+valid_annotations_csv_path = os.path.join(dir_valid, 'annotations.csv')
+
 # Train/Test/Validation split config
 PCT_TRAIN = 0.8
 PCT_VALID = 0.1
@@ -38,13 +45,12 @@ TEXTURE_INSCRIPTIONS = ['#a09993', '#a9753f', '#b2aca9', '#b39572', '#d1a170',
                         '#6e6c68', '#726d6b', '#7f766f',  '#73716d', '#8a8881', 
                         '#998e84', '#947c6a']
 
-IMG_SIZE   = (224, 224)
 IMG_WIDTH  = 350
 IMG_HEIGHT = 350
 
-NR_OF_TRAINING_IMAGES    = 1100
-NR_OF_VALIDATION_IMAGES  = 110
-NR_OF_TESTING_IMAGES     = 220
+NR_OF_TRAINING_IMAGES    = 2500
+NR_OF_VALIDATION_IMAGES  = 250
+NR_OF_TESTING_IMAGES     = 500
 
 def show_image(img):
     plt.axis('off')
@@ -303,7 +309,7 @@ def create_natural_image_for_testing(letterPath, letterName, i, letterTrainPath)
 
     composite.save(imageName)
     
-    hard_mask.save(maskName)
+    #hard_mask.save(maskName)
 
     return composite, imageName, bbox
 
@@ -324,10 +330,11 @@ def create_augmented_image_for_training(letterPath, letterName, i, letterTrainPa
 
     #hard_mask.save(maskName)
 
+    composite = degrade_img(composite)
+
     return composite, imageName, bbox
 
 def create_synthetic_image_for_training(letterPath, letterName, i, bgColors, fgColors, imagePath):
-    
     ext       = '{}_{}'.format(letterName, i)
     imageName = '{}/synthetic_letter_{}.png'.format(imagePath, ext)
     #annName   = '{}/ann_{}.xml'.format(ann_path, ext)
@@ -339,16 +346,21 @@ def create_synthetic_image_for_training(letterPath, letterName, i, bgColors, fgC
     aug_background = augment_bkg(background)
     aug_foreground = augment_letter(foreground)
 
-    image = aug_background.copy()
-    
-    image.paste(aug_foreground, (0, 0), aug_foreground)
+    mask_new = getForegroundMask(aug_foreground)
 
-    image = degrade_img(image)
-    
+    # image = aug_background.copy()
+    # image.paste(aug_foreground, (0, 0), aug_foreground)
+
+    composite, hard_mask, bbox = createLayeredImage1(aug_foreground, mask_new, aug_background)
+
+    composite = degrade_img(composite)
+
+    #hard_mask.save(maskName)
+
     #create the anootation File
     #create_annotation(image, lettersInfo, 'oranges', imageName, ann_name)
 
-    return image, imageName
+    return composite, imageName, bbox
 
 
 ###########################
@@ -359,6 +371,9 @@ def generate_training_dataset(nrOfImages):
     bgColors, fgColors = prepareColors(TEXTURE_LETTERS, TEXTURE_INSCRIPTIONS)
 
     lettersFileNames = [f for f in os.listdir(LETTERS_PATH) if f.endswith('.png')]
+
+    # Create a list to keep track of images and mask annotations
+    csv_lines = []
 
     for f in lettersFileNames:
         pathname, extension = os.path.splitext(f)
@@ -372,7 +387,7 @@ def generate_training_dataset(nrOfImages):
         print('Generate images for letter: ' + letterName)
 
         for i in range(nrOfImages):
-            syImage, syImageName = create_synthetic_image_for_training(
+            syImage, syImageName, bbox = create_synthetic_image_for_training(
                 LETTERS_PATH + f,
                 letterName,
                 i, 
@@ -382,6 +397,7 @@ def generate_training_dataset(nrOfImages):
             )
 
             syImage.save(syImageName)
+            csv_lines.append([syImageName, letterName, bbox[0], bbox[1], bbox[2], bbox[3]]) #mask_path
 
             txImage, txImageName, bbox = create_augmented_image_for_training(
                 LETTERS_PATH + f,
@@ -391,6 +407,13 @@ def generate_training_dataset(nrOfImages):
             )
 
             txImage.save(txImageName)
+            csv_lines.append([txImageName, letterName, bbox[0], bbox[1], bbox[2], bbox[3]]) #mask_path
+
+    with open(train_annotations_csv_path, 'w', newline='') as csvfile:
+        writer = csv.writer(csvfile, delimiter=',', quoting=csv.QUOTE_MINIMAL)
+        
+        for csv_line in csv_lines:
+            writer.writerow(csv_line)
 
 #############################
 # Create Validation Dataset #
@@ -401,19 +424,22 @@ def generate_validation_dataset(nrOfImages):
 
     lettersFileNames = [f for f in os.listdir(LETTERS_PATH) if f.endswith('.png')]
 
+    # Create a list to keep track of images and mask annotations
+    csv_lines = []
+
     for f in lettersFileNames:
         pathname, extension = os.path.splitext(f)
 
         letterName = pathname.split('/')[-1]
 
         os.mkdir(DATASET_PATH + 'valid/' + letterName)
-        
+
         print(letterName)
 
         print('Generate images for letter: ' + letterName)
 
         for i in range(nrOfImages):
-            syImage, syImageName = create_synthetic_image_for_training(
+            syImage, syImageName, bbox = create_synthetic_image_for_training(
                 LETTERS_PATH + f,
                 letterName,
                 i, 
@@ -423,6 +449,7 @@ def generate_validation_dataset(nrOfImages):
             )
 
             syImage.save(syImageName)
+            csv_lines.append([syImageName, letterName, bbox[0], bbox[1], bbox[2], bbox[3]]) #mask_path
 
             txImage, txImageName, bbox = create_augmented_image_for_training(
                 LETTERS_PATH + f,
@@ -432,6 +459,13 @@ def generate_validation_dataset(nrOfImages):
             )
 
             txImage.save(txImageName)
+            csv_lines.append([txImageName, letterName, bbox[0], bbox[1], bbox[2], bbox[3]]) #mask_path
+
+    with open(valid_annotations_csv_path, 'w', newline='') as csvfile:
+        writer = csv.writer(csvfile, delimiter=',', quoting=csv.QUOTE_MINIMAL)
+        
+        for csv_line in csv_lines:
+            writer.writerow(csv_line)
 
 ###########################
 # Create Testing Dataset  #

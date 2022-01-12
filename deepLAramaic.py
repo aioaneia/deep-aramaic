@@ -11,23 +11,35 @@ import matplotlib.pyplot as plt
 import tensorflow        as tf
 import os
 
+from hyperas.distributions import uniform
+
+# from keras.utils import custom_object_scope
+# from tensorflow.keras_resnet.layers import BatchNormalization
+# from keras_retinanet.layers import UpsampleLike, Anchors, RegressBoxes, ClipBoxes, FilterDetections
+# from keras_retinanet.initializers import PriorProbability
+# from keras_retinanet import models
+# from keras_retinanet.models.retinanet import retinanet_bbox
+
 from tensorflow.keras.models                            import Model, Sequential
 from tensorflow.keras.layers                            import Dense, Dropout, Flatten, Conv2D, MaxPool2D
 from tensorflow.keras.preprocessing                     import image_dataset_from_directory
+from tensorflow.keras.preprocessing.image               import load_img, img_to_array
 from tensorflow.keras.applications                      import VGG19, ResNet152, EfficientNetB7
+from tensorflow.keras.applications.inception_resnet_v2  import InceptionResNetV2
 from tensorflow.keras.layers.experimental.preprocessing import RandomFlip, RandomRotation, Rescaling, Resizing, Rescaling, RandomZoom, RandomTranslation
 from tensorflow.keras.optimizers                        import Adam
 from tensorflow.keras.callbacks                         import ModelCheckpoint, EarlyStopping, TensorBoard, ReduceLROnPlateau, LearningRateScheduler
-from tensorflow.keras.losses                            import SparseCategoricalCrossentropy
+from tensorflow.keras.losses                            import SparseCategoricalCrossentropy, MSE
 from tensorflow.keras.utils                             import plot_model
 
 from efficientnet.keras                                 import EfficientNetL2
 
-
 #PATH          = "datasets/panamuwa"
-PATH          = "datasets/synthetic"
+PATH          = "datasets/synthetic_data"
 BATCH_SIZE    = 32
-IMG_SIZE      = (224, 224)
+IMG_SIZE      = (256, 256)
+WIDTH         = 256
+HEIGHT        = 256
 IMG_SHAPE     = IMG_SIZE + (3,)
 EPOCHS        = 30
 LEARNING_RATE = 0.007
@@ -44,23 +56,27 @@ TRAIN_DIR      = os.path.join(PATH, 'train')
 VALIDATION_DIR = os.path.join(PATH, 'valid')
 TEST_DIR       = os.path.join(PATH, 'test')
 
+ANNOTATION_PATH = "datasets/annotation_data"
+
+train_annotations_path = os.path.join(ANNOTATION_PATH, 'train_annotations.csv')
+valid_annotations_path = os.path.join(ANNOTATION_PATH, 'valid_annotations.csv')
 
 with tf.device('/cpu:0'):
   dataAugmentation = Sequential([
-    Resizing(224, 224),
-    RandomFlip('horizontal_and_vertical'),
-    RandomRotation(0.2),
-    RandomZoom(height_factor=  0.2, width_factor = 0.2),
-    RandomTranslation(height_factor = 0.2, width_factor = 0.2)
+    Resizing(256, 256),
+    # RandomRotation(0.2),
+    # RandomZoom(height_factor=  0.2, width_factor = 0.2),
+    # RandomTranslation(height_factor = 0.2, width_factor = 0.2)
   ])
 
-# convert the image matrices to a 0–1 range,  
-# resize all images to 224x224 with three color channels
-# lower the batch size to 32 for memory concerns
+############
+# Datasets #
+############
+
 trainDataset = image_dataset_from_directory(
   TRAIN_DIR,
-  validation_split = 0.2,
-  subset           = "training",
+  #validation_split = 0.1,
+  #subset           = "training",
   seed             = 42,
   image_size       = IMG_SIZE,
   batch_size       = BATCH_SIZE,
@@ -69,8 +85,8 @@ trainDataset = image_dataset_from_directory(
 
 validationDataset = image_dataset_from_directory(
   VALIDATION_DIR,
-  validation_split = 0.2,
-  subset           = "validation",
+  #validation_split = 0.1,
+  #subset           = "validation",
   seed             = 42,
   shuffle          = True,
   image_size       = IMG_SIZE,
@@ -79,13 +95,10 @@ validationDataset = image_dataset_from_directory(
 
 testDataset = image_dataset_from_directory(
   TEST_DIR,
-  shuffle    = True, 
-  batch_size = BATCH_SIZE, 
+  shuffle    = True,
+  batch_size = BATCH_SIZE,
   image_size = IMG_SIZE
 )
-
-# trainDataset               = trainDataset.prefetch(buffer_size = tf.data.experimental.AUTOTUNE)
-# validationDataset          = validationDataset.prefetch(buffer_size = tf.data.experimental.AUTOTUNE)
 
 augmentTrainDataset        = trainDataset.map(lambda x, y: (dataAugmentation(x, training = True), y))
 augmentValidationDataset   = validationDataset.map(lambda x, y: (dataAugmentation(x, training = True), y))
@@ -98,6 +111,48 @@ valid_num  = tf.data.experimental.cardinality(testDataset)
 print('Number of train batches:      %d' % train_num)
 print('Number of validation batches: %d' % test_num)
 print('Number of test batches:       %d' % valid_num)
+
+###############
+# Annotations #
+###############
+
+def open_annotaions(annotations_path):
+  data = []
+  targets = []
+  labels  = []
+  rows    = open(annotations_path).read().strip().split("\n")
+
+  for row in rows:
+    row = row.split(",")
+
+    (filename, letter_class, startX, startY, endX, endY) = row
+
+    image     = load_img(filename, target_size = IMG_SIZE)
+    image_arr = img_to_array(image)
+
+    data.append(image_arr)
+
+    startX = round(int(startX) / WIDTH, 2)
+    startY = round(int(startY) / HEIGHT, 2)
+    endX = round(int(endX) / WIDTH, 2)
+    endY = round(int(endY) / HEIGHT, 2)
+
+    targets.append((startX, startY, endX, endY))
+
+    labels.append(letter_class)
+
+  return targets, labels
+
+#train_data, train_targets, train_labels = open_annotaions(train_annotations_path)
+#valid_data, valid_targets, valid_labels = open_annotaions(valid_annotations_path)
+
+# print(len(train_data))
+# print(len(train_targets))
+# print(len(train_labels))
+
+# print(len(valid_data))
+# print(len(valid_targets))
+# print(len(valid_labels))
 
 ############################
 # Optimisers
@@ -137,6 +192,13 @@ efficientNetL2 = EfficientNetL2(
   weights     = "./models/model_EfficientNetL2_notop.h5", 
   include_top = False,
   drop_connect_rate = 0
+)
+
+inception_resnet_v2 = InceptionResNetV2(
+    input_shape  = IMG_SHAPE,
+    include_top  = False,
+    weights      ='imagenet',
+    input_tensor = None,
 )
 
 ############################
@@ -211,30 +273,24 @@ for img, _ in trainDataset.take(1):
 # Create an architecture model #
 #########################################
 
-def create_sequential_model():
-  model_1 = tf.keras.Sequential([
-    Conv2D(filters=32, kernel_size=(3, 3), input_shape=(224, 224, 3), activation='relu'),
-    
-    Conv2D(filters=32, kernel_size=(3, 3), activation='relu'),
-    
-    MaxPool2D(pool_size=(2, 2), padding='same'),
-    
-    Conv2D(filters=64, kernel_size=(3, 3), activation='relu'),
-    
-    Conv2D(filters=64, kernel_size=(3, 3), activation='relu'),
-    
-    MaxPool2D(pool_size=(2, 2), padding='same'),
-    
-    
-    Flatten(),
-    
-    Dense(units=512, activation='relu'),
-    Dropout(rate=0.3),
-    Dense(units=128),
-    Dense(NR_CLASSES=2, activation='softmax')
-  ])
+# def get_RetinaNet_model():
+#     custom_objects = {
+#         'BatchNormalization': BatchNormalization,
+#         'UpsampleLike': UpsampleLike,
+#         'Anchors': Anchors,
+#         'RegressBoxes': RegressBoxes,
+#         'PriorProbability': PriorProbability,
+#         'ClipBoxes': ClipBoxes,
+#         'FilterDetections': FilterDetections,
+#     }
 
-  return model
+#     with custom_object_scope(custom_objects):
+#         backbone = models.backbone('resnet50')
+#         model = backbone.retinanet(500)
+#         prediction_model = retinanet_bbox(model=model)
+#         # prediction_model.load_weights("...your weights here...")
+
+#     return prediction_model, custom_objects
 
 #########################################
 # Create a model from a pre trained one #
@@ -244,35 +300,48 @@ def create_from_trained_model(preTrainedModel):
   for layer in preTrainedModel.layers:
     layer.trainable = False
 
-  layer = Flatten()(preTrainedModel.layers[-1].output)
-  
-  layer = Dropout(0.30)(layer)
+  base_layers = Flatten()(preTrainedModel.layers[-1].output)
 
-  layer = Rescaling(1.0 / 255)(layer)
+  #create the classifier branch
+  classifier_layers      = Dropout(0.30)(base_layers)
+  classifier_layers      = Rescaling(1.0 / 255)(classifier_layers)
+  classifier_layers      = Dense(NR_NEURONS, activation = 'relu', kernel_initializer = 'he_normal')(classifier_layers)
+  classifier_layers      = Dropout(0.40)(classifier_layers)
+  classifier_layers      = Dense(NR_NEURONS / 2, activation = 'relu', kernel_initializer = 'he_normal')(classifier_layers)
+  classifier_layers      = Dropout(0.40)(classifier_layers)
+  classifier_predictions = Dense(NR_CLASSES, name='cl_head', activation ='softmax', kernel_initializer = 'glorot_normal')(classifier_layers)
 
-  layer = Dense(NR_NEURONS, activation = 'relu', kernel_initializer = 'he_normal')(layer)
-  layer = Dropout(0.40)(layer)
+  #create the localiser branch
+  locator_layers = Dense(128, activation='relu',    name='bb_1')(base_layers)
+  locator_layers = Dense(64,  activation='relu',    name='bb_2')(locator_layers)
+  locator_layers = Dense(32,  activation='relu',    name='bb_3')(locator_layers)
+  locator_layers = Dense(4,   activation='sigmoid', name='bb_head')(locator_layers)
 
-  layer = Dense(NR_NEURONS, activation = 'relu', kernel_initializer = 'he_normal')(layer)
-  layer = Dropout(0.40)(layer)
-
-  predictions = Dense(NR_CLASSES, activation='softmax', kernel_initializer = 'glorot_normal')(layer)
-
-  model = Model(inputs = preTrainedModel.input, outputs = predictions)
+  model = Model(
+    inputs  = preTrainedModel.input,
+    outputs = [
+      classifier_predictions,
+      #locator_layers
+    ]
+  )
 
   return model
 
-model = create_from_trained_model(efficientNetB7) # efficientNetL2, efficientNetB7
+# efficientNetL2, efficientNetB7, resNet50Model, vgg19Model
+model = create_from_trained_model(efficientNetB7)
 
-# plot_model(model, 'models/Figurine21.png')
+###########
+# Compile #
+###########
 
-#############################
-# Compile                   #
-#############################
+losses = {
+  "cl_head": SparseCategoricalCrossentropy(from_logits = True),
+  #"bb_head": MSE
+}
 
 model.compile(
   optimizer = ADAM_OPT,
-  loss      = SparseCategoricalCrossentropy(),
+  loss      = losses,
   metrics   = ['accuracy']
 )
 
@@ -285,9 +354,25 @@ model.summary()
 # Train                     #
 #############################
 
+# trainTargets = {
+#     "cl_head": train_labels,
+#     "bb_head": train_targets
+# }
+
+# validationTargets = {
+#     "cl_head": valid_labels,
+#     "bb_head": valid_targets
+# }
+# history = model.fit(
+#   train_data, trainTargets,
+#   validation_data  = (valid_data, validationTargets),
+#   epochs           = EPOCHS,
+#   callbacks        = [earlyStop, reduceLR, checkpointer, tensorboard],
+# )
+
 history = model.fit(
   augmentTrainDataset,
-  validation_data  = augmentValidationDataset,
+  validation_data  = (augmentTrainDataset),
   epochs           = EPOCHS,
   callbacks        = [earlyStop, reduceLR, checkpointer, tensorboard],
 )

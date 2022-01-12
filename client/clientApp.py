@@ -9,18 +9,18 @@ from tensorflow.keras.models              import load_model
 
 app = Flask(__name__)
 
-RESNET101_PATH        = "../models/model_ResNet101_0.964.h5"
-RESNET152_PATH        = "../models/model_ResNet152_0.929.h5"
-VGG19_PATH            = "../models/model_VGG19_0.893.h5"
-EFFICIENT_NET_B7_PATH = "../models/model_EfficientNetB7_0.786.h5"
+RESNET152_PATH        = "../models/model_ResNet152_0.883.h5"
+VGG19_PATH            = "../models/model_EfficientNetB7_0.899.h5"
+EFFICIENT_NET_B7_PATH = "../models/model_EfficientNetB7_0.899.h5"
 
-resNet101Model      = load_model(RESNET101_PATH)
+print('Loading models')
+
+#resNet101Model      = load_model(RESNET101_PATH)
 resNet152Model      = load_model(RESNET152_PATH)
 vgg19Model          = load_model(VGG19_PATH)
 efficientNetB7Model = load_model(EFFICIENT_NET_B7_PATH)
 
 deepLModels = [
-  { 'id': 1, 'name': 'ResNet101',      'model': resNet101Model },
   { 'id': 2, 'name': 'ResNet152',      'model': resNet152Model },
   { 'id': 3, 'name': 'VGG19',          'model': vgg19Model },
   { 'id': 4, 'name': 'EfficientNetB7', 'model': efficientNetB7Model }
@@ -28,7 +28,7 @@ deepLModels = [
 
 defaultModel = deepLModels[0]
 
-PATH           = "../datasets/panamuwa"
+PATH           = "../datasets/synthetic_data"
 BATCH_SIZE     = 32
 IMG_SIZE       = (224, 224)
 TARGET_SIZE    = (224, 224, 3)
@@ -36,6 +36,7 @@ TRAIN_DIR      = os.path.join(PATH, 'train')
 VALIDATION_DIR = os.path.join(PATH, 'valid')
 TEST_DIR       = os.path.join(PATH, 'test')
 basedir        = os.path.abspath(os.path.dirname(__file__))
+
 
 app.config.update(
   UPLOADED_PATH              = os.path.join(basedir, 'static/uploads'),
@@ -63,13 +64,13 @@ validationDataset = image_dataset_from_directory(VALIDATION_DIR,
   batch_size       = BATCH_SIZE
 )
 
-testDataset = image_dataset_from_directory(TEST_DIR, 
+testDataset = image_dataset_from_directory(TEST_DIR,
   shuffle    = True, 
   batch_size = BATCH_SIZE, 
   image_size = IMG_SIZE
 )
 
-classNames = trainDataset.class_names 
+classNames = trainDataset.class_names
 
 # Evaluate model
 def evaluateModel(model):
@@ -99,6 +100,7 @@ def loadImage(imgPath):
   image           = img_to_array(imageRaw)
   predictionImage = np.array(image)
   predictionImage = np.expand_dims(image, 0)
+
   return predictionImage
 
 #############################
@@ -193,7 +195,7 @@ def predict():
 
   f.save(filePath)
 
-  predictByCompactBilinearPooling(filePath)
+  #predictByCompactBilinearPooling(filePath)
 
   predictions = predictByModel(filePath, modelId)
 

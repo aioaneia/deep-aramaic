@@ -12,14 +12,11 @@ from tensorflow.keras.models              import Model
 from IPython.display import Image, display
 
 RESNET101_PATH        = "models/model_ResNet101_0.964.h5"
-RESNET152_PATH        = "models/model_ResNet152_0.929.h5"
+RESNET152_PATH        = "models/model_ResNet152_0.883.h5"
 VGG19_PATH            = "models/model_VGG19_0.893.h5"
 EFFICIENT_NET_B7_PATH = "models/model_EfficientNetB7_0.786.h5"
 
-#resNet101Model      = load_model(RESNET101_PATH)
 resNet152Model      = load_model(RESNET152_PATH)
-#vgg19Model          = load_model(VGG19_PATH)
-#efficientNetB7Model = load_model(EFFICIENT_NET_B7_PATH)
 
 deepLModels = [
   { 'id': 1, 'name': 'ResNet101',      'model': "resNet101Model" },
@@ -28,9 +25,9 @@ deepLModels = [
   { 'id': 4, 'name': 'EfficientNetB7', 'model': "efficientNetB7Model" }
 ]
 
-defaultModel = deepLModels[2]
+defaultModel = resNet152Model
 
-PATH           = "datasets/panamuwa"
+PATH           = "datasets/synthetic"
 BATCH_SIZE     = 32
 IMG_SIZE       = (224, 224)
 TARGET_SIZE    = (224, 224, 3)
@@ -39,52 +36,20 @@ VALIDATION_DIR = os.path.join(PATH, 'valid')
 TEST_DIR       = os.path.join(PATH, 'test')
 basedir        = os.path.abspath(os.path.dirname(__file__))
 
-# Datasets
-trainDataset = image_dataset_from_directory(TRAIN_DIR,
-  validation_split = 0.2,
-  subset           = "training",
-  seed             = 1337,
-  image_size       = IMG_SIZE,
-  batch_size       = BATCH_SIZE,
-  shuffle          = True
-)
-
-validationDataset = image_dataset_from_directory(VALIDATION_DIR,
-  validation_split = 0.2,
-  subset           = "validation",
-  seed             = 1337,
-  shuffle          = True,
-  image_size       = IMG_SIZE,
-  batch_size       = BATCH_SIZE
-)
-
-testDataset = image_dataset_from_directory(TEST_DIR, 
+testDataset = image_dataset_from_directory(TEST_DIR,
   shuffle    = True, 
   batch_size = BATCH_SIZE, 
   image_size = IMG_SIZE
 )
 
-classNames = trainDataset.class_names 
+classNames = testDataset.class_names
 
-def getModelById(modelId):
-  model = ''
-
-  for deepLModel in deepLModels:
-    if modelId == deepLModel['id']:
-      model = deepLModel
-  
-  if not model:
-    model = defaultModel
-  
-  print(model['name'])
-
-  return model['model']
-  
 def loadImage(imgPath):
   imageRaw        = load_img(imgPath, target_size = TARGET_SIZE)
   image           = img_to_array(imageRaw)
   predictionImage = np.array(image)
   predictionImage = np.expand_dims(image, 0)
+
   return predictionImage
 
 def make_gradcam_heatmap(img_array, model, last_conv_layer_name, pred_index=None):
@@ -128,28 +93,23 @@ def make_gradcam_heatmap(img_array, model, last_conv_layer_name, pred_index=None
 #############################
 # Predict an image #
 #############################
-def makeHeatMap(imgPath, modelId, lastConvLayer):  
+
+def makeHeatMap(imgPath, lastConvLayer):  
   image = loadImage(imgPath)
-  model = getModelById(modelId)
+
+  model = defaultModel
 
   # Remove last layer's softmax
   model.layers[-1].activation = None
 
   model.summary()
 
-  predictions = model.predict(image)
-
   # Generate class activation heatmap
   heatmap = make_gradcam_heatmap(image, model, lastConvLayer)
 
-  # Display heatmap
-  #plt.matshow(heatmap)
-  #plt.show()
-
   return heatmap
 
-def saveGradCam(imgPath, heatmap, cam_path = "cam.jpg", alpha=0.4):
-  # Load the original image
+def saveGradCam(imgPath, heatmap, cam_path, alpha=0.4):
   img = image.load_img(imgPath)
   img = img_to_array(img)
 
@@ -175,23 +135,58 @@ def saveGradCam(imgPath, heatmap, cam_path = "cam.jpg", alpha=0.4):
   # Save the superimposed image
   superimposed_img.save(cam_path)
 
-  # Display Grad CAM
-  display(Image(cam_path))
+def test_prediction(imgPath):
+  image         = loadImage(imgPath)
+  
+  predictions   = defaultModel.predict(image)
+
+  top_indices   = np.argsort(predictions)[0, ::-1][:3]
+  top_indice    = np.argmax(predictions[0])
+  top_percents  = np.sort(predictions)[0, ::-1][:3]
+  percent       = round((100 * np.max(predictions[0])), 3)
+  returnObjects = []
+
+  for i in range(len(classNames)):
+    for j in range(len(top_indices)):
+      if i == top_indices[j]:
+        predictionObj = {
+          'letter':     classNames[i],
+          'prediction': round((100 * top_percents[j]), 2)
+        }
+        returnObjects.append(predictionObj)
+
+  print('-------------------------------------')
+  #print('Shape ->        ', predictions.shape)
+  print('Predictions ->  ', predictions[0])
+  print('Top Indices ->  ', top_indices)
+  print('Top Percents -> ', top_percents)
+  print('Index ->        ', top_indice)
+  print('Percent ->      ', percent)
+  print('Letters ->      ', returnObjects)
+  print('-------------------------------------')
+  print('')
 
 def test():
-  filePath1     = 'client/static/uploads/Panamuwa_1_1.png'
-  filePath2     = 'client/static/uploads/Panamuwa_1_2.png'
+  image1 = 'test/texture_letter_Alef_48.png'
+  image2 = 'test/texture_letter_Alef_49.png'
+
   camPath1 = "cam1.jpg"
   camPath2 = "cam2.jpg"
 
-  modelId       = 2
   lastConvLayer = 'conv5_block3_out'
 
-  heatmap1 = makeHeatMap(filePath1, modelId, lastConvLayer)
-  heatmap2 = makeHeatMap(filePath2, modelId, lastConvLayer)
+  heatmap_for_image_1 = makeHeatMap(image1, lastConvLayer)
 
-  saveGradCam(filePath1, heatmap1, camPath1)
+  heatmap_for_image_2 = makeHeatMap(image2, lastConvLayer)
 
-  saveGradCam(filePath2, heatmap2, camPath2)
+  saveGradCam(image1, heatmap_for_image_1, camPath1)
 
-test()
+  saveGradCam(image2, heatmap_for_image_2, camPath2)
+
+def main():
+  image1 = 'test/texture_letter_Alef_48.png'
+
+  test_prediction(image1)
+
+if __name__ == "__main__":
+  main()
