@@ -31,74 +31,103 @@ def sharpness(img):
         factor = np.random.uniform(1,10)
 
     enhancer = ImageEnhance.Sharpness(img)
+
     img  = enhancer.enhance(factor)
 
     return img
 
 
 def s_and_p(img):
+    image_arr = np.asarray(img)
+
     amount = np.random.uniform(0.001, 0.01)
+    
     # add some s&p
-    row,col = img.shape
     s_vs_p = 0.5
-    out = np.copy(img)
+    out = np.copy(image_arr)
     # Salt mode
-    num_salt = np.ceil(amount * img.size * s_vs_p)
+    num_salt = np.ceil(amount * image_arr.size * s_vs_p)
     coords = [np.random.randint(0, i - 1, int(num_salt))
-          for i in img.shape]
+          for i in image_arr.shape]
     out[coords] = 1
 
     #pepper
-    num_pepper = np.ceil(amount* img.size * (1. - s_vs_p))
+    num_pepper = np.ceil(amount* image_arr.size * (1. - s_vs_p))
     coords = [np.random.randint(0, i - 1, int(num_pepper))
-          for i in img.shape]
+          for i in image_arr.shape]
     out[coords] = 0
     
-    return out
+    img = Image.fromarray(out)
+
+    return img
 
 def scale(img):
+    image_arr = np.asarray(img)
+
     f = np.random.uniform(0.5,1.5)
-    shape_OG = img.shape
-    res = cv2.resize(img,None,fx=f, fy=f, interpolation = cv2.INTER_CUBIC)
+
+    shape_OG = image_arr.shape
+
+    res = cv2.resize(image_arr,None,fx=f, fy=f, interpolation = cv2.INTER_CUBIC)
+
     res = cv2.resize(res,None,fx=1.0/f, fy=1.0/f, interpolation = cv2.INTER_CUBIC)
-    return res
+    
+    img = Image.fromarray(res)
+
+    return img
 
 
 def quantize(img):
-    img = cv2.cvtColor(img,cv2.COLOR_GRAY2RGB)
-    
-    (h, w) = img.shape[:2]
+    image_arr = np.asarray(img)
 
-    img = cv2.cvtColor(img, cv2.COLOR_BGR2LAB)
-    img = img.reshape((img.shape[0] * img.shape[1], 3))
+    image_arr = cv2.cvtColor(image_arr, cv2.COLOR_GRAY2RGB)
+    
+    (h, w) = image_arr.shape[:2]
+
+    image_arr = cv2.cvtColor(image_arr, cv2.COLOR_BGR2LAB)
+    image_arr = image_arr.reshape((image_arr.shape[0] * image_arr.shape[1], 3))
 
     clt = MiniBatchKMeans(n_clusters = 2)
-    labels = clt.fit_predict(img)
+    labels = clt.fit_predict(image_arr)
     quant = clt.cluster_centers_.astype("uint8")[labels]
 
     quant = quant.reshape((h, w, 3))
-    img = img.reshape((h, w, 3))
+    image_arr = image_arr.reshape((h, w, 3))
 
     quant = cv2.cvtColor(quant, cv2.COLOR_LAB2BGR)
-    img = cv2.cvtColor(img, cv2.COLOR_LAB2BGR)
+    image_arr = cv2.cvtColor(image_arr, cv2.COLOR_LAB2BGR)
     
-    img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+    image_arr = cv2.cvtColor(image_arr, cv2.COLOR_BGR2GRAY)
+
+    img = Image.fromarray(image_arr)
+
     return img
 
 def invert(img):
-    im_inv = cv2.bitwise_not(img)
-    return im_inv
+    image_arr = np.asarray(img)
+
+    im_inv = cv2.bitwise_not(image_arr)
+    
+    img = Image.fromarray(im_inv)
+
+    return img
 
 def darken(img):
-    img =  cv2.subtract(img, np.random.uniform(0,50))
+    image_arr = np.asarray(img)
+
+    image_arr = cv2.subtract(image_arr, np.random.uniform(0, 50))
+
+    img = Image.fromarray(image_arr)
+
     return img
 
 def degrade_img(img):
-    # if np.random.uniform(0,1) < 0.1:
-    #     img = s_and_p(img)
 
-    # if np.random.uniform(0,1) < 0.5:
-    #     img = scale(img)
+    if np.random.uniform(0,1) < 0.1:
+        img = s_and_p(img)
+
+    if np.random.uniform(0,1) < 0.5:
+        img = scale(img)
 
     if np.random.uniform(0,1) < 0.7:
         img = brightness(img)
@@ -109,15 +138,16 @@ def degrade_img(img):
     if np.random.uniform(0,1) < 0.5:
         img = sharpness(img)
 
-    # if np.random.uniform(0,1) < 0.2:
+    # if np.random.uniform(0,1) < 0.4:
     #     img = quantize(img)
 
-    # if np.random.uniform(0,1) < 0.5:
-    #     img = darken(img)
+    if np.random.uniform(0,1) < 0.3:
+        img = darken(img)
 
-    # if np.random.uniform(0,1) < 0.1:
-    #     img = invert(img) 
+    image_arr = np.asarray(img)
+    
+    image_arr = cv2.resize(image_arr, (224,224))
 
-    # img = cv2.resize(img, (256,256))
+    img = Image.fromarray(image_arr)
 
     return img

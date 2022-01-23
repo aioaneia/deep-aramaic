@@ -179,23 +179,23 @@ def translate_bkg(img):
 
     return dst
 
-
 def translate_mol(img):
-    img = cv2.resize(img, (256,256))
+    img = cv2.resize(img, (350, 350))
+
     mol = crop_mol(img)
     rows_m, cols_m = mol.shape
     
-    y_max = 256-rows_m
-    x_max = 256-cols_m
+    y_max = 350-rows_m
+    x_max = 350-cols_m
     if y_max > 0 and x_max > 0:
-        y_offset=np.random.randint(0,256-rows_m)
-        x_offset=np.random.randint(0,256-cols_m)
+        y_offset=np.random.randint(0,350-rows_m)
+        x_offset=np.random.randint(0,350-cols_m)
     else:
         y_offset=0
         x_offset=0
 
-    white = np.zeros((256, 256), np.uint8)
-    white[:] = (255)
+    white = np.zeros((350, 350), np.uint8)
+    white[:] = (350)
     white[y_offset:y_offset+rows_m, x_offset:x_offset+cols_m] = mol
 
     return white
@@ -287,13 +287,10 @@ def augment_letter(image):
 
     image_arr = gaussian_blur(image_arr)
 
-    # if np.random.uniform(0, 1) < 0.5:
-    #     image_arr = resize(image_arr)
-
-    if np.random.uniform(0,1) < 0.2:
+    if np.random.uniform(0,1) < 0.3:
         image_arr = erode(image_arr)
 
-    if np.random.uniform(0,1) < 0.2:
+    if np.random.uniform(0,1) < 0.3:
         image_arr = dilate(image_arr)
 
     image_arr = aspect_ratio(image_arr, "mol")
@@ -301,8 +298,19 @@ def augment_letter(image):
     if np.random.uniform(0,1) < 0.7:
         image_arr = affine(image_arr, "mol")
 
-    if np.random.uniform(0,1) < 0.6:
+    # flip_v    
+    if np.random.uniform(0,1) < 0.5:
+        image_arr = flip_v(image_arr)
+    
+    # flip_h    
+    if np.random.uniform(0,1) < 0.5:
+        image_arr = flip_h(image_arr)
+    
+    if np.random.uniform(0,1) < 0.7:
         image_arr = distort(image_arr)
+
+    # if np.random.uniform(0,1) < 0.3:
+    #   image_arr = translate_mol(image_arr)
 
     new_image = Image.fromarray(image_arr)
 
@@ -326,8 +334,11 @@ def augment_bkg(image):
 
     image_arr = erode(image_arr)
 
-    if np.random.uniform(0,1) < 0.2:
+    if np.random.uniform(0,1) < 0.3:
         image_arr = dilate(image_arr)
+
+    if np.random.uniform(0,1) < 0.3:
+        image_arr = translate_bkg(image_arr)
 
     if np.random.uniform(0,1) < 0.7:
         image_arr = affine(image_arr, "bkg")
@@ -341,7 +352,7 @@ def augment_bkg(image):
     if np.random.uniform(0,1) < 0.8:
         image_arr = distort(image_arr)
 
-    #image_arr = crop_bkg(image_arr)
+    image_arr = crop_bkg(image_arr)
 
     new_image = Image.fromarray(image_arr)
 

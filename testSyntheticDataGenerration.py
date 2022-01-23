@@ -24,15 +24,11 @@ def test_background_augumentation():
     show_image(aug_synthetic_background)
 
 def test_foreground_augumentation():
-    letterPath = LETTERS_PATH + 'Bet.png'
+    letterPath = LETTERS_VARIATION_PATH + 'Dalet/'
 
-    foreground = getLetterForeground(letterPath)
+    foreground = getRandomLetterForeground(letterPath)
 
     show_image(foreground)
-
-    newForeground = foregroundAugmentation(foreground)
-
-    show_image(newForeground)
 
     aug_foreground = augment_letter(foreground)
 
@@ -96,83 +92,74 @@ def testCreateNaturalImageForTraining():
     show_image(composite)
 
 
-def testCreateNaturalImageForTrainingForAll():
+def test_augmented_image_for_training():
+  letterName = 'Dalet'
+  letterPath = LETTERS_VARIATION_PATH + 'Dalet' + "/"
 
-    lettersFileNames = [f for f in os.listdir(LETTERS_PATH) if f.endswith('.png')]
+  letterTrainPath  = DATASET_PATH + 'train/' + letterName
 
-    for f in lettersFileNames:
-        pathname, extension = os.path.splitext(f)
-        letterName          = pathname.split('/')[-1]
+  composite, imageName, bbox = create_augmented_image_for_training(
+    letterPath,
+    letterName,
+    0,
+    letterTrainPath)
 
-        letterPath       = LETTERS_PATH + f
-        letterTrainPath  = DATASET_PATH + 'train/' + letterName
+  show_image(composite)
 
-        print(pathname)
-        print(letterName)
-        print(letterPath)
-        print(letterTrainPath)
+  x = bbox[1]
+  y = bbox[0]
+  width = bbox[3] - bbox[1]
+  height = bbox[2] - bbox[0]
 
-        composite, imageName, bbox = create_natural_image_for_testing(letterPath, letterName, 0, letterTrainPath)
+  rectangle = Rectangle((x,y), width, height, linewidth = 1, edgecolor = 'r', facecolor = 'none')
 
-        show_image(composite)
-
-        x = bbox[1]
-        y = bbox[0]
-        width = bbox[3] - bbox[1]
-        height = bbox[2] - bbox[0]
-
-        rectangle = Rectangle((x,y), width, height, linewidth = 1, edgecolor = 'r', facecolor = 'none')
-
-        plt.imshow(composite)
-        plt.gca().add_patch(rectangle)
-        plt.axis('off')
-        plt.show()
+  plt.imshow(composite)
+  plt.gca().add_patch(rectangle)
+  plt.axis('off')
+  plt.show()
 
 
-def testCreateSyntheticImageForTraining():
+def test_synthetic_image_for_training():
     bgColors, fgColors = prepareColors(TEXTURE_LETTERS, TEXTURE_INSCRIPTIONS)
 
-    letterName = 'Mem'
-    letterPath = LETTERS_PATH + 'Mem.png'
+    letterName = 'Bet'
+    letterPath = LETTERS_VARIATION_PATH + 'Bet' + "/"
+    letterTrainPath  = DATASET_PATH + 'train/' + letterName
 
-    image, imageName = create_synthetic_image_for_training(
+    image, imageName, bbox = create_synthetic_image_for_training(
         letterPath, 
         letterName, 
         0, 
         bgColors, 
         fgColors, 
-        DATASET_PATH + 'train/' + letterName)
+        letterTrainPath)
 
     show_image(image)
 
 def test_generate_training_dataset():
-    generate_training_dataset(2)
+    generate_training_dataset(20)
 
 def test_generate_validation_dataset():
-    generate_validation_dataset(2)
+    generate_validation_dataset(20)
 
 def main():
     
-    setup_folder_structure()
+    #setup_folder_structure()
+
+    # for f in range(10):
+    #   test_background_augumentation()
 
     for f in range(10):
-      test_background_augumentation()
+        test_foreground_augumentation()
 
     # for f in range(10):
-    #     test_foreground_augumentation()
+    #   testPipeline()
 
-    #testPipeline()
+    # for f in range(20):
+    #   test_synthetic_image_for_training()
 
-    #testCreateNaturalImageForTraining()
-
-    #testCreateNaturalImageForTrainingForAll()
-
-    #testCreateNaturalImageForTraining()
-
-    # for f in range(10):
-    #     testCreateSyntheticImageForTraining()
-
-    #test_generate_training_dataset()
+    for f in range(20):
+      test_augmented_image_for_training()
 
     #test_generate_validation_dataset()
 

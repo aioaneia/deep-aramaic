@@ -1,52 +1,62 @@
-# -*- coding: utf-8 -*-
+
 """
 Created on June 10 2021
 
 @author: Andrei Aioanei
 """
+import os
+import sys
 
 import numpy             as np
 import pandas            as pd
 import matplotlib.pyplot as plt
 import tensorflow        as tf
-import os
+import tensorflow_hub    as hub
 
-from hyperas.distributions import uniform
-
-# from keras.utils import custom_object_scope
-# from tensorflow.keras_resnet.layers import BatchNormalization
-# from keras_retinanet.layers import UpsampleLike, Anchors, RegressBoxes, ClipBoxes, FilterDetections
-# from keras_retinanet.initializers import PriorProbability
-# from keras_retinanet import models
-# from keras_retinanet.models.retinanet import retinanet_bbox
+# Download source code.
+if "efficientnetv2" not in os.getcwd():
+  os.chdir('automl/efficientnetv2')
+  sys.path.append('.')
 
 from tensorflow.keras.models                            import Model, Sequential
-from tensorflow.keras.layers                            import Dense, Dropout, Flatten, Conv2D, MaxPool2D
+from tensorflow.keras.layers                            import Dense, Dropout, Flatten, GlobalAveragePooling2D, GlobalMaxPooling2D, Concatenate, BatchNormalization
 from tensorflow.keras.preprocessing                     import image_dataset_from_directory
 from tensorflow.keras.preprocessing.image               import load_img, img_to_array
-from tensorflow.keras.applications                      import VGG19, ResNet152, EfficientNetB7
+
+#from tensorflow.keras.applications.efficientnet_v2     import EfficientNetV2L
+from tensorflow.keras.applications                      import MobileNetV3Large
+from tensorflow.keras.applications.vgg19                import VGG19
+from tensorflow.keras.applications.resnet               import ResNet152
+from tensorflow.keras.applications.resnet_v2            import ResNet50V2, ResNet152V2
+from tensorflow.keras.applications.efficientnet         import EfficientNetB7
+from tensorflow.keras.applications.xception             import Xception
+from tensorflow.keras.applications.nasnet               import NASNetMobile
+from tensorflow.keras.applications.densenet             import DenseNet201
 from tensorflow.keras.applications.inception_resnet_v2  import InceptionResNetV2
+
 from tensorflow.keras.layers.experimental.preprocessing import RandomFlip, RandomRotation, Rescaling, Resizing, Rescaling, RandomZoom, RandomTranslation
 from tensorflow.keras.optimizers                        import Adam
 from tensorflow.keras.callbacks                         import ModelCheckpoint, EarlyStopping, TensorBoard, ReduceLROnPlateau, LearningRateScheduler
 from tensorflow.keras.losses                            import SparseCategoricalCrossentropy, MSE
 from tensorflow.keras.utils                             import plot_model
 
-from efficientnet.keras                                 import EfficientNetL2
+from keras_efficientnet_v2                              import EfficientNetV2L, EfficientNetV1L2
+
+import effnetv2_model
 
 #PATH          = "datasets/panamuwa"
 PATH          = "datasets/synthetic_data"
 BATCH_SIZE    = 32
-IMG_SIZE      = (256, 256)
-WIDTH         = 256
-HEIGHT        = 256
+IMG_SIZE      = (224, 224)
+WIDTH         = 224
+HEIGHT        = 224
 IMG_SHAPE     = IMG_SIZE + (3,)
 EPOCHS        = 30
-LEARNING_RATE = 0.007
+LEARNING_RATE = 0.003
 BETA_1        = 0.9
 BETA_2        = 0.999
-NR_CLASSES    = 22
-NR_NEURONS    = 2 * 1024
+NR_CLASSES    = 5
+NR_NEURONS    = 4 * 1024
 WEIGHTS       = 'imagenet'
 POOLING       = 'avg'
 AUTOTUNE      = tf.data.AUTOTUNE
@@ -61,9 +71,13 @@ ANNOTATION_PATH = "datasets/annotation_data"
 train_annotations_path = os.path.join(ANNOTATION_PATH, 'train_annotations.csv')
 valid_annotations_path = os.path.join(ANNOTATION_PATH, 'valid_annotations.csv')
 
+print(tf.__version__)
+
+tf.config.list_physical_devices()
+
 with tf.device('/cpu:0'):
   dataAugmentation = Sequential([
-    Resizing(256, 256),
+    Resizing(224, 224)
     # RandomRotation(0.2),
     # RandomZoom(height_factor=  0.2, width_factor = 0.2),
     # RandomTranslation(height_factor = 0.2, width_factor = 0.2)
@@ -100,14 +114,15 @@ testDataset = image_dataset_from_directory(
   image_size = IMG_SIZE
 )
 
-augmentTrainDataset        = trainDataset.map(lambda x, y: (dataAugmentation(x, training = True), y))
-augmentValidationDataset   = validationDataset.map(lambda x, y: (dataAugmentation(x, training = True), y))
+augmentTrainDataset      = trainDataset.map(lambda x, y: (dataAugmentation(x, training = True), y))
+augmentValidationDataset = validationDataset.map(lambda x, y: (dataAugmentation(x, training = True), y))
 
 classNames = trainDataset.class_names
 train_num  = tf.data.experimental.cardinality(trainDataset)
 test_num   = tf.data.experimental.cardinality(validationDataset)
 valid_num  = tf.data.experimental.cardinality(testDataset)
 
+print('Number of classes:            %d' % len(classNames))
 print('Number of train batches:      %d' % train_num)
 print('Number of validation batches: %d' % test_num)
 print('Number of test batches:       %d' % valid_num)
@@ -175,7 +190,31 @@ vgg19Model = VGG19(
   weights     = "imagenet",
 )
 
-resNet50Model = ResNet152(
+resNet50v2Model = ResNet50V2(
+  input_shape = IMG_SHAPE,
+  include_top = False,
+  weights     = "imagenet",
+)
+
+resNet152Model = ResNet152(
+  input_shape = IMG_SHAPE,
+  include_top = False,
+  weights     = "imagenet",
+)
+
+resNet152v2Model = ResNet152V2(
+  input_shape = IMG_SHAPE,
+  include_top = False,
+  weights     = "imagenet",
+)
+
+# mobileNetV2Model = MobileNetV2(
+#   input_shape = IMG_SHAPE,
+#   include_top = False,
+#   weights     = "imagenet",
+# )
+
+mobileNetV3Model = MobileNetV3Large(
   input_shape = IMG_SHAPE,
   include_top = False,
   weights     = "imagenet",
@@ -187,11 +226,26 @@ efficientNetB7 = EfficientNetB7(
   weights     = "imagenet",
 )
 
-efficientNetL2 = EfficientNetL2(
+# efficientNetV2L = EfficientNetV2L(
+#   input_shape = IMG_SHAPE,
+#   num_classes = 0, 
+#   pretrained  = "imagenet21k",
+#   dropout     = 0.2
+# )
+
+efficientNetV2L = effnetv2_model.get_model('efficientnetv2-l', include_top = False, weights = 'imagenet21k-ft1k')
+
+efficientNetV1L2 = EfficientNetV1L2(
   input_shape = IMG_SHAPE,
-  weights     = "./models/model_EfficientNetL2_notop.h5", 
+  num_classes = 0, 
+  pretrained  = "imagenet",
+  dropout = 0.2
+)
+
+xception = Xception(
+  input_shape = IMG_SHAPE,
   include_top = False,
-  drop_connect_rate = 0
+  weights     = "imagenet",
 )
 
 inception_resnet_v2 = InceptionResNetV2(
@@ -199,6 +253,18 @@ inception_resnet_v2 = InceptionResNetV2(
     include_top  = False,
     weights      ='imagenet',
     input_tensor = None,
+)
+
+denseNet201 = DenseNet201(
+  input_shape = IMG_SHAPE,
+  include_top = False,
+  weights     = "imagenet",
+)
+
+nASNetLarge = NASNetMobile(
+  input_shape = IMG_SHAPE,
+  include_top = False,
+  weights     = "imagenet",
 )
 
 ############################
@@ -270,46 +336,49 @@ for img, _ in trainDataset.take(1):
     plt.axis('off')
 
 #########################################
-# Create an architecture model #
-#########################################
-
-# def get_RetinaNet_model():
-#     custom_objects = {
-#         'BatchNormalization': BatchNormalization,
-#         'UpsampleLike': UpsampleLike,
-#         'Anchors': Anchors,
-#         'RegressBoxes': RegressBoxes,
-#         'PriorProbability': PriorProbability,
-#         'ClipBoxes': ClipBoxes,
-#         'FilterDetections': FilterDetections,
-#     }
-
-#     with custom_object_scope(custom_objects):
-#         backbone = models.backbone('resnet50')
-#         model = backbone.retinanet(500)
-#         prediction_model = retinanet_bbox(model=model)
-#         # prediction_model.load_weights("...your weights here...")
-
-#     return prediction_model, custom_objects
-
-#########################################
 # Create a model from a pre trained one #
 #########################################
 
+def get_model(load_weights = True):
+  if load_weights:
+    net = effnetv2_model.get_model('efficientnetv2-l', include_top = False, weights = 'imagenet21k-ft1k')
+  else:
+    net = effnetv2_model.get_model('efficientnetv2-l', include_top = False, weights = False)
+  
+  net.__setattr__('build', net.call)
+
+  return net
+
 def create_from_trained_model(preTrainedModel):
-  for layer in preTrainedModel.layers:
-    layer.trainable = False
+  # Freeze the pretrained weights
+  preTrainedModel.trainable = False
 
-  base_layers = Flatten()(preTrainedModel.layers[-1].output)
+  print("Number_of_layers in the base model: ", len(preTrainedModel.layers))
 
-  #create the classifier branch
-  classifier_layers      = Dropout(0.30)(base_layers)
-  classifier_layers      = Rescaling(1.0 / 255)(classifier_layers)
-  classifier_layers      = Dense(NR_NEURONS, activation = 'relu', kernel_initializer = 'he_normal')(classifier_layers)
-  classifier_layers      = Dropout(0.40)(classifier_layers)
-  classifier_layers      = Dense(NR_NEURONS / 2, activation = 'relu', kernel_initializer = 'he_normal')(classifier_layers)
-  classifier_layers      = Dropout(0.40)(classifier_layers)
-  classifier_predictions = Dense(NR_CLASSES, name='cl_head', activation ='softmax', kernel_initializer = 'glorot_normal')(classifier_layers)
+ # We unfreeze the top 20 layers while leaving BatchNorm layers frozen
+  for layer in preTrainedModel.layers[-10:]:
+    if not isinstance(layer, BatchNormalization):
+      layer.trainable = True
+
+  base_layers = preTrainedModel.output
+
+  # create the classifier branch
+  
+  avg                    = GlobalAveragePooling2D()(base_layers)
+  mx                     = GlobalMaxPooling2D()(base_layers)
+  classifier_layers      = Concatenate()([avg, mx])
+  classifier_layers      = BatchNormalization()(classifier_layers)
+  classifier_layers      = Dropout(0.25)(classifier_layers)
+  classifier_layers      = Dense(NR_NEURONS, activation="relu")(classifier_layers)
+  classifier_layers      = BatchNormalization()(classifier_layers)
+  classifier_layers      = Dropout(0.25)(classifier_layers)
+  classifier_predictions = Dense(NR_CLASSES, name='cl_head', activation ='softmax')(classifier_layers)
+
+  # MobileNet
+  # classifier_layers      = GlobalAveragePooling2D()(base_layers)
+  # classifier_layers      = BatchNormalization()(classifier_layers)
+  # classifier_layers      = Dropout(0.25)(classifier_layers)
+  # classifier_predictions = Dense(NR_CLASSES, name='cl_head', activation ='softmax')(classifier_layers)
 
   #create the localiser branch
   locator_layers = Dense(128, activation='relu',    name='bb_1')(base_layers)
@@ -327,8 +396,24 @@ def create_from_trained_model(preTrainedModel):
 
   return model
 
-# efficientNetL2, efficientNetB7, resNet50Model, vgg19Model
-model = create_from_trained_model(efficientNetB7)
+# mobileNetV3Model
+# resNet152Model
+# vgg19Model
+# efficientNetB7
+
+# efficientNetV1L2
+# efficientNetV2L
+
+# resNet152v2Model
+# resNet50v2Model
+
+# mobileNetV2Model
+
+# inception_resnet_v2
+# denseNet201
+# nASNetLarge
+
+model = create_from_trained_model(efficientNetV2L)
 
 ###########
 # Compile #

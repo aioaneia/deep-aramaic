@@ -9,26 +9,7 @@ from tensorflow.keras.models              import load_model
 
 app = Flask(__name__)
 
-RESNET152_PATH        = "../models/model_ResNet152_0.883.h5"
-VGG19_PATH            = "../models/model_EfficientNetB7_0.899.h5"
-EFFICIENT_NET_B7_PATH = "../models/model_EfficientNetB7_0.899.h5"
-
-print('Loading models')
-
-#resNet101Model      = load_model(RESNET101_PATH)
-resNet152Model      = load_model(RESNET152_PATH)
-vgg19Model          = load_model(VGG19_PATH)
-efficientNetB7Model = load_model(EFFICIENT_NET_B7_PATH)
-
-deepLModels = [
-  { 'id': 2, 'name': 'ResNet152',      'model': resNet152Model },
-  { 'id': 3, 'name': 'VGG19',          'model': vgg19Model },
-  { 'id': 4, 'name': 'EfficientNetB7', 'model': efficientNetB7Model }
-]
-
-defaultModel = deepLModels[0]
-
-PATH           = "../datasets/synthetic_data"
+PATH           = "../datasets/real_image_data"
 BATCH_SIZE     = 32
 IMG_SIZE       = (224, 224)
 TARGET_SIZE    = (224, 224, 3)
@@ -37,7 +18,6 @@ VALIDATION_DIR = os.path.join(PATH, 'valid')
 TEST_DIR       = os.path.join(PATH, 'test')
 basedir        = os.path.abspath(os.path.dirname(__file__))
 
-
 app.config.update(
   UPLOADED_PATH              = os.path.join(basedir, 'static/uploads'),
   DROPZONE_ALLOWED_FILE_TYPE = 'image',
@@ -45,40 +25,60 @@ app.config.update(
   DROPZONE_MAX_FILES         = 30
 )
 
-# Datasets
-trainDataset = image_dataset_from_directory(TRAIN_DIR,
-  validation_split = 0.2,
-  subset           = "training",
-  seed             = 1337,
-  image_size       = IMG_SIZE,
-  batch_size       = BATCH_SIZE,
-  shuffle          = True
-)
-
-validationDataset = image_dataset_from_directory(VALIDATION_DIR,
-  validation_split = 0.2,
-  subset           = "validation",
-  seed             = 1337,
-  shuffle          = True,
-  image_size       = IMG_SIZE,
-  batch_size       = BATCH_SIZE
-)
-
 testDataset = image_dataset_from_directory(TEST_DIR,
-  shuffle    = True, 
-  batch_size = BATCH_SIZE, 
+  shuffle    = True,
+  batch_size = BATCH_SIZE,
   image_size = IMG_SIZE
 )
 
-classNames = trainDataset.class_names
+classNames = testDataset.class_names
 
-# Evaluate model
-def evaluateModel(model):
+
+#####################################
+# Loading the best performing model #
+#####################################
+def loading_model(MODEL_PATH):
+  print('Loading model: ', MODEL_PATH)
+
+  model = load_model(MODEL_PATH)
+
   test_loss, test_acc = model.evaluate(testDataset)
-  
+
   print('Test loss: {} Test Acc: {}'.format(test_loss, test_acc))
 
-  model.summary()
+  #model.summary()
+
+  return model
+
+print('Loading models')
+
+EFFICIENT_NET_B7_PATH = "../models/model_EfficientNetB7_0.990.h5"
+MOBILE_NET_V3_PATH    = "../models/model_MobileNetV3_0.987.h5"
+RESNET50_V2_PATH      = "../models/model_ResNet50v2_0.804.h5"
+RESNET152_PATH        = "../models/model_ResNet152_0.991.h5"
+RESNET152_V2_PATH     = "../models/model_ResNet152v2_0.886.h5"
+VGG19_PATH            = "../models/model_VGG_0.968.h5"
+XCEPTION_PATH         = "../models/model_Xception_0.689.h5"
+
+efficientNetB7Model = loading_model(EFFICIENT_NET_B7_PATH)
+mobileNetv3Model    = loading_model(MOBILE_NET_V3_PATH)
+resNet50v2Model     = loading_model(RESNET50_V2_PATH)
+resNet152Model      = loading_model(RESNET152_PATH)
+resNet152v2Model    = loading_model(RESNET152_V2_PATH)
+vgg19Model          = loading_model(VGG19_PATH)
+xceptionModel       = loading_model(XCEPTION_PATH)
+
+deepLModels = [
+  { 'id': 1, 'name': 'EfficientNetB7', 'model': efficientNetB7Model },
+  { 'id': 2, 'name': 'MobileNetv3',    'model': mobileNetv3Model },
+  { 'id': 3, 'name': 'ResNet50v2',     'model': resNet50v2Model },
+  { 'id': 4, 'name': 'ResNet152',      'model': resNet152Model },
+  { 'id': 5, 'name': 'ResNet152v2',    'model': resNet152v2Model },
+  { 'id': 6, 'name': 'VGG19',          'model': vgg19Model },
+  { 'id': 7, 'name': 'Xception',       'model': xceptionModel }
+]
+
+defaultModel = deepLModels[0]
 
 def getModelById(modelId):
   model = ''
@@ -94,6 +94,15 @@ def getModelById(modelId):
 
   return model['model']
   
+
+def getModelNameById(modelId):
+  model = ''
+
+  for deepLModel in deepLModels:
+    if modelId == deepLModel['id']:
+      model = deepLModel
+
+  return model['name']
 
 def loadImage(imgPath):
   imageRaw        = load_img(imgPath, target_size = TARGET_SIZE)
@@ -203,7 +212,8 @@ def predict():
 
   data = {
     'filename':    f.filename,
-    'predictions': predictions
+    'predictions': predictions,
+    'modelName':   getModelNameById(modelId)
   }
 
   return render_template('index.html', data = data)

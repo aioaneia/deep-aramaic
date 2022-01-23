@@ -63,11 +63,14 @@
 
             <div class="input-field col s12 m6">
               <select class="icons" name="select" id="select">
-                <option value="" disabled selected>Choose a DL model</option>
-                <option value="1" data-icon="{{ url_for('static', filename = 'images/model.png') }}">ResNet101</option>
-                <option value="2" data-icon="{{ url_for('static', filename = 'images/model.png') }}">ResNet152</option>
-                <option value="3" data-icon="{{ url_for('static', filename = 'images/model.png') }}">VGG19</option>
-                <option value="4" data-icon="{{ url_for('static', filename = 'images/model.png') }}">EfficientNetB7</option>
+                <option value="" disabled selected>Choose a model</option>
+                <option value="1" data-icon="{{ url_for('static', filename = 'images/model.png') }}">EfficientNetB7</option>
+                <option value="2" data-icon="{{ url_for('static', filename = 'images/model.png') }}">MobileNetV3</option>
+                <option value="3" data-icon="{{ url_for('static', filename = 'images/model.png') }}">ResNet50V2</option>
+                <option value="4" data-icon="{{ url_for('static', filename = 'images/model.png') }}">ResNet152</option>
+                <option value="5" data-icon="{{ url_for('static', filename = 'images/model.png') }}">ResNet152V2</option>
+                <option value="6" data-icon="{{ url_for('static', filename = 'images/model.png') }}">VGG19</option>
+                <option value="7" data-icon="{{ url_for('static', filename = 'images/model.png') }}">Xception</option>
               </select>
               <label>Select a DL model</label>
             </div>
@@ -101,7 +104,7 @@
         
               <div class="card-content">
                 <span class="card-title activator grey-text text-darken-4">
-                  Predictions<i class="material-icons right">more_vert</i>
+                  {{ data['modelName'] }} Predictions<i class="material-icons right">more_vert</i>
                 </span>
                 
                 {% for prediction in data['predictions'] %}

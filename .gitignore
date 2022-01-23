@@ -30,4 +30,6 @@ Thumbs.db
 ######################
 *.h5
 
-datasets/
+datasets/*
+history/
+automl/
