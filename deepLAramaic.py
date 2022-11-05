@@ -1,99 +1,162 @@
-# -*- coding: utf-8 -*-
 """
 Created on June 10 2021
 
 @author: Andrei Aioanei
 """
 
+import os
+import sys
+
 import numpy             as np
 import pandas            as pd
 import matplotlib.pyplot as plt
 import tensorflow        as tf
-import os
+import tensorflow_hub    as hub
 
-from tensorflow.keras.models                            import Model, Sequential
-from tensorflow.keras.layers                            import Dense, Dropout, Flatten, Conv2D, MaxPool2D
-from tensorflow.keras.preprocessing                     import image_dataset_from_directory
-from tensorflow.keras.applications                      import VGG19, ResNet152, EfficientNetB7
+from tensorflow.keras.models                            import Model
+from tensorflow.keras.layers                            import Dense, Dropout, Flatten, GlobalAveragePooling2D, GlobalMaxPooling2D, Concatenate, BatchNormalization
 from tensorflow.keras.layers.experimental.preprocessing import RandomFlip, RandomRotation, Rescaling, Resizing, Rescaling, RandomZoom, RandomTranslation
-from tensorflow.keras.optimizers                        import Adam
-from tensorflow.keras.callbacks                         import ModelCheckpoint, EarlyStopping, TensorBoard, ReduceLROnPlateau
-from tensorflow.keras.losses                            import SparseCategoricalCrossentropy
-from tensorflow.keras.utils                             import plot_model
+from tensorflow.keras.preprocessing                     import image_dataset_from_directory
+from tensorflow.keras.preprocessing.image               import load_img, img_to_array, ImageDataGenerator
 
-PATH          = "datasets/panamuwa"
+#from tensorflow.keras.applications.efficientnet_v2     import EfficientNetV2L
+from tensorflow.keras.applications.vgg19        import VGG19
+from tensorflow.keras.applications.resnet       import ResNet152
+from tensorflow.keras.applications.resnet_v2    import ResNet152V2, ResNet50V2
+from tensorflow.keras.applications.efficientnet import EfficientNetB0
+
+from tensorflow.keras.optimizers import Adam, SGD
+from tensorflow.keras.callbacks  import ModelCheckpoint, EarlyStopping, TensorBoard, ReduceLROnPlateau, LearningRateScheduler
+from tensorflow.keras.losses     import SparseCategoricalCrossentropy, CategoricalCrossentropy, MSE
+from tensorflow.keras.utils      import plot_model
+
+print("TF version:  ", tf.__version__)
+print("Hub version: ", hub.__version__)
+print("GPU:         ", "available" if tf.config.list_physical_devices('GPU') else "NOT AVAILABLE")
+
+MODEL_NAME    = "Model"
+PATH          = "datasets/synthetic_data"
 BATCH_SIZE    = 32
 IMG_SIZE      = (224, 224)
+WIDTH         = 224
+HEIGHT        = 224
 IMG_SHAPE     = IMG_SIZE + (3,)
-EPOCHS        = 1
-LEARNING_RATE = 0.001
+EPOCHS        = 35
+LEARNING_RATE = 0.003
 BETA_1        = 0.9
 BETA_2        = 0.999
-NR_CLASSES    = 23
-NR_NEURONS    = 2 * 1024
+NR_CLASSES    = 22
+NR_NEURONS    = 3 * 1024
 WEIGHTS       = 'imagenet'
 POOLING       = 'avg'
 AUTOTUNE      = tf.data.AUTOTUNE
-MODEL_NAME    = 'models/Figurine21'
 
 TRAIN_DIR      = os.path.join(PATH, 'train')
 VALIDATION_DIR = os.path.join(PATH, 'valid')
 TEST_DIR       = os.path.join(PATH, 'test')
 
+ANNOTATION_PATH = "datasets/annotation_data"
 
-with tf.device('/cpu:0'):
-  dataAugmentation = Sequential([
-    Resizing(224, 224),
-    RandomFlip('horizontal_and_vertical'),
-    RandomRotation(0.2),
-    RandomZoom(height_factor=  0.2, width_factor = 0.2),
-    RandomTranslation(height_factor = 0.2, width_factor = 0.2)
-  ])
+train_annotations_path = os.path.join(ANNOTATION_PATH, 'train_annotations.csv')
+valid_annotations_path = os.path.join(ANNOTATION_PATH, 'valid_annotations.csv')
 
-# convert the image matrices to a 0–1 range,  
-# resize all images to 224x224 with three color channels
-# lower the batch size to 32 for memory concerns
-trainDataset = image_dataset_from_directory(
-  TRAIN_DIR,
-  validation_split = 0.2,
-  subset           = "training",
-  seed             = 42,
-  image_size       = IMG_SIZE,
-  batch_size       = BATCH_SIZE,
-  shuffle          = True
+############
+# Datasets #
+############
+
+train_datagen = ImageDataGenerator(
+    featurewise_center            = True,
+    featurewise_std_normalization = True,
+    rescale                       = 1/255.0,
+    shear_range                   = 0.2,
+    zoom_range                    = 0.3,
+    #rotation_range     = 20,
+    # width_shift_range  = 0.2,
+    # height_shift_range = 0.2,
+    #horizontal_flip    = True,
+    #fill_mode          = 'nearest'
 )
 
-validationDataset = image_dataset_from_directory(
-  VALIDATION_DIR,
-  validation_split = 0.2,
-  subset           = "validation",
-  seed             = 42,
-  shuffle          = True,
-  image_size       = IMG_SIZE,
-  batch_size       = BATCH_SIZE
+valid_datagen = ImageDataGenerator(
+    rescale = 1/255.0
 )
 
-testDataset = image_dataset_from_directory(
-  TEST_DIR,
-  shuffle    = True, 
-  batch_size = BATCH_SIZE, 
-  image_size = IMG_SIZE
+trainDataset = train_datagen.flow_from_directory(
+  directory   = TRAIN_DIR,
+  target_size = IMG_SIZE,
+  batch_size  = BATCH_SIZE,
+  color_mode  = "rgb",
+  class_mode  ='categorical',
+  shuffle     = True,
+  seed        = 42
 )
 
-# trainDataset               = trainDataset.prefetch(buffer_size = tf.data.experimental.AUTOTUNE)
-# validationDataset          = validationDataset.prefetch(buffer_size = tf.data.experimental.AUTOTUNE)
+validDataset = valid_datagen.flow_from_directory(
+  directory   = VALIDATION_DIR,
+  target_size = IMG_SIZE,
+  batch_size  = BATCH_SIZE,
+  color_mode  = "rgb",
+  class_mode  ='categorical',
+  shuffle     = True,
+  seed        = 42,
+)
 
-augmentTrainDataset        = trainDataset.map(lambda x, y: (dataAugmentation(x, training = True), y))
-augmentValidationDataset   = validationDataset.map(lambda x, y: (dataAugmentation(x, training = True), y))
+testDataset = valid_datagen.flow_from_directory(
+  directory   = TEST_DIR,
+  target_size = IMG_SIZE,
+  batch_size  = BATCH_SIZE,
+  color_mode  = "rgb",
+  class_mode  = None,
+  shuffle     = False,
+  seed        = 42,
+)
 
-classNames = trainDataset.class_names
-train_num  = tf.data.experimental.cardinality(trainDataset)
-test_num   = tf.data.experimental.cardinality(validationDataset)
-valid_num  = tf.data.experimental.cardinality(testDataset)
+labels = trainDataset.class_indices
+classNames   = []
+classIndices = []
 
-print('Number of train batches:      %d' % train_num)
-print('Number of validation batches: %d' % test_num)
-print('Number of test batches:       %d' % valid_num)
+for k, v in labels.items():
+  classNames.append(k)
+  classIndices.append(v)
+  print(k,v)
+
+print('Number of classes: ', len(labels))
+print('Indices:           ', labels)
+
+###############
+# Annotations #
+###############
+
+def open_annotaions(annotations_path):
+  data    = []
+  targets = []
+  labels  = []
+  rows    = open(annotations_path).read().strip().split("\n")
+
+  for row in rows:
+    row = row.split(",")
+
+    (filename, letter_class, startX, startY, endX, endY) = row
+
+    image     = load_img(filename, target_size = IMG_SIZE)
+    image_arr = img_to_array(image)
+
+    data.append(image_arr)
+
+    startX = round(int(startX) / WIDTH, 2)
+    startY = round(int(startY) / HEIGHT, 2)
+    endX = round(int(endX) / WIDTH, 2)
+    endY = round(int(endY) / HEIGHT, 2)
+
+    targets.append((startX, startY, endX, endY))
+
+    labels.append(letter_class)
+
+  return targets, labels
+
+#train_data, train_targets, train_labels = open_annotaions(train_annotations_path)
+#valid_data, valid_targets, valid_labels = open_annotaions(valid_annotations_path)
+
 
 ############################
 # Optimisers
@@ -106,48 +169,63 @@ ADAM_OPT = Adam(
   epsilon       = 1e-08
 )
 
+SGD_OPT = SGD(
+  learning_rate = LEARNING_RATE, 
+  momentum      = 0.9
+)
+
 ############################
 # Pre-trained Models
 ############################
 
-vgg19Model = VGG19(
+resNet152v2Model = ResNet152V2(
   input_shape = IMG_SHAPE,
   include_top = False,
   weights     = "imagenet",
 )
 
-resNet50Model = ResNet152(
+efficientNetB0 = EfficientNetB0(
   input_shape = IMG_SHAPE,
   include_top = False,
   weights     = "imagenet",
 )
 
-efficientNetB7 = EfficientNetB7(
-  input_shape = IMG_SHAPE,
-  include_top = False,
-  weights     = "imagenet",
-)
 
 ############################
-# Settings
+# EarlyStopping Callback
 ############################
 
 earlyStop = EarlyStopping(
-  monitor  = 'val_accuracy', 
-  patience = 10
+  monitor   = 'val_accuracy',
+  mode      = 'max',
+  min_delta = 0.001,
+  patience  = 10
 )
 
+############################
+# ModelCheckpoint Callbacks
+############################
+
+checkpoint_filepath = 'models/model-' + MODEL_NAME + '-{val_accuracy:.3f}.h5'
+
 checkpointer = ModelCheckpoint(
-  filepath          = 'models/model_{val_accuracy:.3f}.h5',
+  filepath          = checkpoint_filepath,
   save_best_only    = True,
   save_weights_only = False,
-  monitor           = 'val_accuracy'
+  mode              = 'max', 
+  monitor           = 'val_accuracy',
+  verbose           = 1
 )
 
 reduceLR = ReduceLROnPlateau( 
-  monitor  = 'accuracy',
+  monitor  = 'val_loss',
   factor   = 0.1,
-  patience = 2,
+  patience = 3,
+  min_lr   = 0.00001
+)
+
+learningRate = LearningRateScheduler(
+  lambda epoch: 1e-3 * 10 ** (epoch / 30)
 )
 
 tensorboard = TensorBoard(
@@ -161,90 +239,90 @@ tensorboard = TensorBoard(
   embeddings_metadata    = None
 )
 
-plt.figure(figsize = (12, 12))
-
-for images, labels in trainDataset.take(1):
-  for i in range(9):
-    ax = plt.subplot(3, 3, i + 1)
-
-    plt.imshow(images[i].numpy().astype("uint8"))
-    plt.title(classNames[labels[i]])
-    plt.axis("off")
+callbacks_list = [earlyStop, reduceLR, checkpointer, tensorboard]
 
 # for better data performance using buffered prefetching 
-trainDataset      = trainDataset.prefetch(buffer_size      = AUTOTUNE)
-validationDataset = validationDataset.prefetch(buffer_size = AUTOTUNE)
-testDataset       = testDataset.prefetch(buffer_size       = AUTOTUNE)
-
-for img, _ in trainDataset.take(1):
-  plt.figure(figsize = (10, 10))
-  
-  first_image = img[0]
-  
-  for i in range(9):
-    ax = plt.subplot(3, 3, i + 1)
-    augmented_image = dataAugmentation(tf.expand_dims(first_image, 0))
-    plt.imshow(augmented_image[0] / 255)
-    plt.axis('off')
-
-#########################################
-# Create an architecture model #
-#########################################
-
-def create_sequential_model():
-  model_1 = tf.keras.Sequential([
-    Conv2D(filters=32, kernel_size=(3, 3), input_shape=(224, 224, 3), activation='relu'),
-    
-    Conv2D(filters=32, kernel_size=(3, 3), activation='relu'),
-    
-    MaxPool2D(pool_size=(2, 2), padding='same'),
-    
-    Conv2D(filters=64, kernel_size=(3, 3), activation='relu'),
-    
-    Conv2D(filters=64, kernel_size=(3, 3), activation='relu'),
-    
-    MaxPool2D(pool_size=(2, 2), padding='same'),
-    
-    
-    Flatten(),
-    
-    Dense(units=512, activation='relu'),
-    Dropout(rate=0.3),
-    Dense(units=128),
-    Dense(NR_CLASSES=2, activation='softmax')
-  ])
-
-  return model
+# trainDataset = trainDataset.prefetch(buffer_size = AUTOTUNE)
+# validDataset = validDataset.prefetch(buffer_size = AUTOTUNE)
+# testDataset  = testDataset.prefetch(buffer_size  = AUTOTUNE)
 
 #########################################
 # Create a model from a pre trained one #
 #########################################
 
 def create_from_trained_model(preTrainedModel):
-  for layer in preTrainedModel.layers:
-    layer.trainable = False
+  # Freeze the pretrained weights
+  preTrainedModel.trainable = False
 
-  layer = Flatten()(preTrainedModel.layers[-1].output)
-  
-  layer = Dropout(0.30)(layer)
+  #print("Number_of_layers in the base model: ", len(preTrainedModel.layers))
 
-  layer = Rescaling(1.0 / 255)(layer)
+ # We unfreeze the top 10 layers while leaving BatchNorm layers frozen
+  # for layer in preTrainedModel.layers[-10:]:
+  #   if not isinstance(layer, BatchNormalization):
+  #     layer.trainable = True
 
-  layer = Dense(NR_NEURONS, activation = 'relu', kernel_initializer = 'he_normal')(layer)
-  layer = Dropout(0.40)(layer)
+  base_layers = preTrainedModel.output
 
-  layer = Dense(NR_NEURONS, activation = 'relu', kernel_initializer = 'he_normal')(layer)
-  layer = Dropout(0.40)(layer)
+  # create the classifier branch
+  avg                    = GlobalAveragePooling2D()(base_layers)
+  mx                     = GlobalMaxPooling2D()(base_layers)
+  classifier_layers      = Concatenate()([avg, mx])
+  classifier_layers      = BatchNormalization()(classifier_layers)
+  classifier_layers      = Dropout(0.5)(classifier_layers)
+  classifier_layers      = Dense(NR_NEURONS, activation="relu")(classifier_layers)
+  classifier_layers      = BatchNormalization()(classifier_layers)
+  classifier_layers      = Dropout(0.5)(classifier_layers)
+  classifier_predictions = Dense(NR_CLASSES, name='cl_head', activation ='softmax')(classifier_layers)
 
-  predictions = Dense(NR_CLASSES, activation='softmax', kernel_initializer = 'glorot_normal')(layer)
+  #efficientnetv2_l
+  # avg                    = GlobalAveragePooling2D()(base_layers)
+  # classifier_layers      = BatchNormalization()(avg)
+  # classifier_layers      = Dropout(0.25)(classifier_layers)
+  # classifier_predictions = Dense(NR_CLASSES, name='cl_head', activation ='softmax')(classifier_layers)
 
-  model = Model(inputs = preTrainedModel.input, outputs = predictions)
+  #create the localiser branch
+  locator_layers = Dense(128, activation='relu',    name='bb_1')(base_layers)
+  locator_layers = Dense(64,  activation='relu',    name='bb_2')(locator_layers)
+  locator_layers = Dense(32,  activation='relu',    name='bb_3')(locator_layers)
+  locator_layers = Dense(4,   activation='sigmoid', name='bb_head')(locator_layers)
+
+  model = Model(
+    inputs  = preTrainedModel.input,
+    outputs = [
+      classifier_predictions,
+      #locator_layers
+    ]
+  )
 
   return model
 
-model = create_from_trained_model(efficientNetB7)
+model_name = 'efficientnetv2-b2'
+ckpt_type  = '21k-ft1k' # 21k, 1k
+hub_type   = 'classification' # feature-vector
+hub_url    = 'gs://cloud-tpu-checkpoints/efficientnet/v2/hub/' + model_name + '-' + ckpt_type +'/' + hub_type
 
-# plot_model(model, 'models/Figurine21.png')
+# tf.keras.backend.clear_session()
+
+efficientnet_v2 = hub.KerasLayer(hub_url, trainable = True)
+efficientnet_v2 = hub.KerasLayer("https://tfhub.dev/google/imagenet/efficientnet_v2_imagenet21k_ft1k_b0/classification/2", trainable = True)
+resnet_v2       = hub.KerasLayer("https://tfhub.dev/google/bit/m-r152x4/imagenet21k_classification/1", trainable = True)
+
+# #transformer = hub.KerasLayer("https://tfhub.dev/sayakpaul/vit_b32_classification/1", trainable = True)
+
+model = tf.keras.Sequential([
+    tf.keras.layers.InputLayer(input_shape = [224, 224, 3]),
+    efficientnet_v2,
+    tf.keras.layers.Dropout(rate = 0.3),
+    tf.keras.layers.Dense(22, activation='softmax'),
+])
+
+model.build((None,) + IMG_SIZE + (3,))
+
+#############################
+# Summary                   #
+#############################
+
+print(model.summary())
 
 #############################
 # Compile                   #
@@ -252,27 +330,30 @@ model = create_from_trained_model(efficientNetB7)
 
 model.compile(
   optimizer = ADAM_OPT,
-  loss      = SparseCategoricalCrossentropy(),
+  loss      = CategoricalCrossentropy(from_logits = True),
   metrics   = ['accuracy']
 )
 
-#############################
-# Summary                   #
-#############################
-model.summary()
-
-#############################
-# Train                     #
-#############################
+class_weight = {
+    0: 1.0,
+    1: 1.0,
+    2: 2.0,
+    3: 1.0,
+    4: 1.0,
+    5: 2.0,
+    6: 1.0
+}
 
 history = model.fit(
-  augmentTrainDataset,
-  validation_data  = augmentValidationDataset,
+  trainDataset,
+  validation_data  = (validDataset),
   epochs           = EPOCHS,
   callbacks        = [earlyStop, reduceLR, checkpointer, tensorboard],
 )
 
-model.save(MODEL_NAME)
+saved_model_path = f"models/model_{MODEL_NAME}"
+
+model.save(saved_model_path)
 
 #############################
 # Metrics                   #
@@ -312,18 +393,18 @@ print('Model accuracy ---> ', accuracy)
 #############################
 # Prediction                #
 #############################
-imageBatch, labelBatch = testDataset.as_numpy_iterator().next()
-predictedBatch         = model.predict(imageBatch)
-predictedId            = np.argmax(predictedBatch, axis = -1)
+# imageBatch, labelBatch = testDataset.as_numpy_iterator().next()
+# predictedBatch         = model.predict(imageBatch)
+# predictedId            = np.argmax(predictedBatch, axis = -1)
 
-plt.figure(figsize = (10, 10))
+# plt.figure(figsize = (10, 10))
 
-for i in range(9):
-  ax = plt.subplot(3, 3, i + 1)
+# for i in range(9):
+#   ax = plt.subplot(3, 3, i + 1)
 
-  plt.imshow(imageBatch[i].astype("uint8"))
-  plt.title(classNames[predictedId[i]])
-  plt.axis("off")
+#   plt.imshow(imageBatch[i].astype("uint8"))
+#   plt.title(classindices[predictedId[i]])
+#   plt.axis("off")
 
 # plt.tight_layout()
 # plt.show()

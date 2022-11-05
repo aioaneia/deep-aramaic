@@ -1,41 +1,35 @@
-import numpy as np
+
 import os
+import sys
+
+import tensorflow        as tf
+import numpy             as np
+import matplotlib.pyplot as plt
+import tensorflow_hub    as hub
 
 from flask import Flask, render_template, request, redirect, url_for, jsonify
 
-from tensorflow.keras.preprocessing       import image_dataset_from_directory, image
-from tensorflow.keras.preprocessing.image import load_img, img_to_array
-from tensorflow.keras.models              import load_model
+from tensorflow.keras.applications.resnet_v2            import ResNet152V2
+from tensorflow.keras.applications.xception             import Xception
+from tensorflow.keras.layers                            import Dense, Dropout, BatchNormalization, GlobalAveragePooling2D, GlobalMaxPooling2D, Concatenate
+from tensorflow.keras.losses                            import SparseCategoricalCrossentropy
+from tensorflow.keras.layers.experimental.preprocessing import RandomRotation, Resizing, Rescaling
+from tensorflow.keras.models                            import Model, Sequential, load_model
+from tensorflow.keras.preprocessing                     import image_dataset_from_directory
+from tensorflow.keras.preprocessing.image               import load_img, img_to_array, ImageDataGenerator
+from tensorflow.keras.optimizers                        import Adam
 
-app = Flask(__name__)
+#Metrics
+from sklearn.metrics import confusion_matrix, classification_report, roc_auc_score
 
-RESNET101_PATH        = "../models/model_ResNet101_0.964.h5"
-RESNET152_PATH        = "../models/model_ResNet152_0.929.h5"
-VGG19_PATH            = "../models/model_VGG19_0.893.h5"
-EFFICIENT_NET_B7_PATH = "../models/model_EfficientNetB7_0.786.h5"
+app     = Flask(__name__)
+basedir = os.path.abspath(os.path.dirname(__file__))
 
-resNet101Model      = load_model(RESNET101_PATH)
-resNet152Model      = load_model(RESNET152_PATH)
-vgg19Model          = load_model(VGG19_PATH)
-efficientNetB7Model = load_model(EFFICIENT_NET_B7_PATH)
-
-deepLModels = [
-  { 'id': 1, 'name': 'ResNet101',      'model': resNet101Model },
-  { 'id': 2, 'name': 'ResNet152',      'model': resNet152Model },
-  { 'id': 3, 'name': 'VGG19',          'model': vgg19Model },
-  { 'id': 4, 'name': 'EfficientNetB7', 'model': efficientNetB7Model }
-]
-
-defaultModel = deepLModels[0]
-
-PATH           = "../datasets/panamuwa"
-BATCH_SIZE     = 32
+BATCH_SIZE     = 16
 IMG_SIZE       = (224, 224)
-TARGET_SIZE    = (224, 224, 3)
-TRAIN_DIR      = os.path.join(PATH, 'train')
-VALIDATION_DIR = os.path.join(PATH, 'valid')
-TEST_DIR       = os.path.join(PATH, 'test')
-basedir        = os.path.abspath(os.path.dirname(__file__))
+IMG_SHAPE      = IMG_SIZE + (3,)
+TARGET_SIZE    = (224, 224)
+TEST_DATA_PATH = "../datasets/real_image_data"
 
 app.config.update(
   UPLOADED_PATH              = os.path.join(basedir, 'static/uploads'),
@@ -44,40 +38,84 @@ app.config.update(
   DROPZONE_MAX_FILES         = 30
 )
 
-# Datasets
-trainDataset = image_dataset_from_directory(TRAIN_DIR,
-  validation_split = 0.2,
-  subset           = "training",
-  seed             = 1337,
-  image_size       = IMG_SIZE,
-  batch_size       = BATCH_SIZE,
-  shuffle          = True
-)
+with tf.device('/cpu:0'):
+  data_augmentation = Sequential([
+    Resizing(224, 224),
+    Rescaling(1. / 255)
+  ])
 
-validationDataset = image_dataset_from_directory(VALIDATION_DIR,
-  validation_split = 0.2,
-  subset           = "validation",
-  seed             = 1337,
-  shuffle          = True,
-  image_size       = IMG_SIZE,
-  batch_size       = BATCH_SIZE
-)
-
-testDataset = image_dataset_from_directory(TEST_DIR, 
-  shuffle    = True, 
-  batch_size = BATCH_SIZE, 
+test_dataset = image_dataset_from_directory(TEST_DATA_PATH,
+  shuffle    = True,
+  batch_size = BATCH_SIZE,
   image_size = IMG_SIZE
 )
 
-classNames = trainDataset.class_names 
+test_datagen = ImageDataGenerator(
+  rescale = 1/255.0
+)
 
-# Evaluate model
-def evaluateModel(model):
+testDataset = test_datagen.flow_from_directory(
+  directory   = TEST_DATA_PATH,
+  target_size = IMG_SIZE,
+  batch_size  = BATCH_SIZE,
+  color_mode  = 'rgb',
+  class_mode  = None,
+  shuffle     = False,
+  seed        = 42,
+)
+
+
+classNames = test_dataset.class_names
+NR_CLASSES = len(classNames)
+
+
+def make_prediction(model):
+  imageBatch, labelBatch = test_dataset.as_numpy_iterator().next()
+  predictedBatch         = model.predict(imageBatch)
+  predictedId            = np.argmax(predictedBatch, axis = -1)
+
+  plt.figure(figsize = (10, 10))
+
+  for i in range(9):
+    ax = plt.subplot(3, 3, i + 1)
+
+    plt.imshow(imageBatch[i].astype("uint8"))
+    plt.title(classNames[predictedId[i]])
+    plt.axis("off")
+
+  plt.tight_layout()
+  plt.show()
+
+def loading_model(MODEL_PATH):
+  print('')
+  print('--> Loading model ', MODEL_PATH)
+
+  model = load_model(MODEL_PATH, custom_objects = { 'KerasLayer': hub.KerasLayer })
+
   test_loss, test_acc = model.evaluate(testDataset)
-  
-  print('Test loss: {} Test Acc: {}'.format(test_loss, test_acc))
 
-  model.summary()
+  print('Model {}  Test loss: {} Test Acc: {}'.format(MODEL_PATH, test_loss, test_acc))
+
+  #make_prediction(model)
+
+  return model
+
+
+print('Loading models')
+
+EFFICIENTNETV2_PATH = "../models/efficientnetv2B0-0.999.h5"
+RESNET152v2_PATH    = "../models/efficientnetv2B2-0.988.h5"
+
+resnet152v2    = loading_model(RESNET152v2_PATH)
+efficientnetv2 = loading_model(EFFICIENTNETV2_PATH)
+
+deepLModels = [
+  { 'id': 1, 'name': 'ResNet152v2',     'model': resnet152v2 },
+  { 'id': 2, 'name': 'EfficientNetB7',  'model': efficientnetv2 },
+  { 'id': 3, 'name': 'EfficientNetV2L', 'model': efficientnetv2 }
+]
+
+defaultModel = deepLModels[0]
 
 def getModelById(modelId):
   model = ''
@@ -85,21 +123,31 @@ def getModelById(modelId):
   for deepLModel in deepLModels:
     if modelId == deepLModel['id']:
       model = deepLModel
-  
+
   if not model:
     model = defaultModel
-  
+
   print(model['name'])
 
   return model['model']
-  
+
+
+def getModelNameById(modelId):
+  model = ''
+
+  for deepLModel in deepLModels:
+    if modelId == deepLModel['id']:
+      model = deepLModel
+
+  return model['name']
 
 def loadImage(imgPath):
-  imageRaw        = load_img(imgPath, target_size = TARGET_SIZE)
-  image           = img_to_array(imageRaw)
-  predictionImage = np.array(image)
-  predictionImage = np.expand_dims(image, 0)
-  return predictionImage
+  image     = load_img(imgPath, target_size = TARGET_SIZE)
+  input_arr = img_to_array(image)
+  input_arr = np.array([input_arr])
+  input_arr = input_arr.astype('float32') / 255. 
+
+  return input_arr
 
 #############################
 # Predict an image          #
@@ -193,7 +241,7 @@ def predict():
 
   f.save(filePath)
 
-  predictByCompactBilinearPooling(filePath)
+  #predictByCompactBilinearPooling(filePath)
 
   predictions = predictByModel(filePath, modelId)
 
@@ -201,7 +249,8 @@ def predict():
 
   data = {
     'filename':    f.filename,
-    'predictions': predictions
+    'predictions': predictions,
+    'modelName':   getModelNameById(modelId)
   }
 
   return render_template('index.html', data = data)

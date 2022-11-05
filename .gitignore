@@ -29,3 +29,7 @@ Thumbs.db
 # DeepLearning files
 ######################
 *.h5
+
+# Image files
+######################
+*.png
