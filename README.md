@@ -1,37 +1,29 @@
-# Deel Learning Aramaic Script
-## Restoring ancient text using deep learning
 
-Andrei Aioanei<sup>\*</sup>, Regine Hunziker-Rodewald<sup>\*</sup>, Gaby
+# Deep Aramaic Script
+## Classifing ancient text using deep learning
+
+Andrei C. Aioanei,<sup>\1</sup> Regine Hunziker-Rodewald,<sup>\1</sup> Konstantin Klein,<sup>\2</sup> Dominik L. Michels<sup>\3</sup> 
+
+1 University of Strasbourg (France)
+2 University of Amsterdam (Netherlands)
+3 KAUST Visual Computing Center (KSA)
+
+
 
 Ancient History relies on disciplines such as Epigraphy, the study of ancient inscribed texts, for evidence of the recorded past. However, these inscriptions are often damaged and illegible parts of the text must be restored by specialists.
 
-This work presents a novel assistive method for providing text restorations using deep neural networks.
+This work presents a novel method for providing letter classification using deep neural networks and synthetic data generation.
 
-Aramaic-DL is an ancient aramaic text restoration model that recovers missing characters from a damaged text input.
-
-Its architecture is carefully designed to handle missing or corrupted character and word depictions.
-
-To automatically locate segment individual characters from text regions and also identify each character belonging to the Aramaic Script, given images of Aramaic inscriptions, using image processing and deep learning techniques.
-
-To train it, we wrote a pipeline to convert the digital corpus of ancient Aramaic inscriptions, to machine actionable text, which we call Aramaic-DL.
 
 ## Deploying the app
 
-## Talks
-
-### References
-
-## Aramaic-DL online
+## Deep Aramaic online
 
 #### Dependencies
 
-#### Aramaic-DL dataset generation
+#### Aramaic letter dataset generation
 
 #### Training
 
 #### Evaluation
 
-#### Docker execution
-
-## License
-Apache License, Version 2.0
