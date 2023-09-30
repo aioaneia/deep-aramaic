@@ -1,12 +1,9 @@
 import os
-import errno
 import random
 import pathlib
 import csv
 import cv2
 import numpy             as np
-import skimage.io        as io
-import skimage.transform as transform
 import matplotlib.pyplot as plt
 
 from pascal              import PascalVOC, PascalObject, BndBox, size_block
@@ -19,6 +16,7 @@ BASE_DIR = os.path.dirname(__file__)
 
 LETTERS_PATH           = "./images/letters/"
 LETTERS_VARIATION_PATH = "./images/letters-aramaic/"
+#LETTERS_VARIATION_PATH = "./images/Nabatean_script/"
 BACKGROUNDS_PATH       = "./images/textures/basalt/"
 
 # Folders for training, testing, and validation subsets
@@ -41,7 +39,7 @@ PCT_TRAIN = 0.8
 PCT_VALID = 0.1
 PCT_TEST  = 0.1
 
-TEXTURE_LETTERS      = [
+TEXTURE_LETTERS = [
   '#3d3d3d', '#3b2d23',
   '#474545', '#464645', 
   '#5f5d5c', '#535250', '#aea8a4'
@@ -80,9 +78,9 @@ TEXTURE_INSCRIPTIONS = [
 IMG_WIDTH  = 320
 IMG_HEIGHT = 320
 
-NR_OF_TRAINING_IMAGES    = 2500
-NR_OF_VALIDATION_IMAGES  = 300
-NR_OF_TESTING_IMAGES     = 400
+NR_OF_TRAINING_IMAGES    = 4000
+NR_OF_VALIDATION_IMAGES  = 500
+NR_OF_TESTING_IMAGES     = 50
 
 def show_image(img):
     plt.axis('off')

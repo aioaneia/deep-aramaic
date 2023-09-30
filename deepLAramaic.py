@@ -13,22 +13,32 @@ import matplotlib.pyplot as plt
 import tensorflow        as tf
 import tensorflow_hub    as hub
 
+
+from tensorflow.keras                                   import backend as K
 from tensorflow.keras.models                            import Model
-from tensorflow.keras.layers                            import Dense, Dropout, Flatten, GlobalAveragePooling2D, GlobalMaxPooling2D, Concatenate, BatchNormalization
-from tensorflow.keras.layers.experimental.preprocessing import RandomFlip, RandomRotation, Rescaling, Resizing, Rescaling, RandomZoom, RandomTranslation
 from tensorflow.keras.preprocessing                     import image_dataset_from_directory
 from tensorflow.keras.preprocessing.image               import load_img, img_to_array, ImageDataGenerator
+from tensorflow.keras.wrappers.scikit_learn             import KerasClassifier
 
-#from tensorflow.keras.applications.efficientnet_v2     import EfficientNetV2L
-from tensorflow.keras.applications.vgg19        import VGG19
-from tensorflow.keras.applications.resnet       import ResNet152
-from tensorflow.keras.applications.resnet_v2    import ResNet152V2, ResNet50V2
-from tensorflow.keras.applications.efficientnet import EfficientNetB0
+from tensorflow.keras.layers                            import SeparableConv2D
+from tensorflow.keras.layers                            import Dense, Dropout, Flatten, GlobalAveragePooling2D, GlobalMaxPooling2D, Concatenate, BatchNormalization
+from tensorflow.keras.layers.experimental.preprocessing import RandomFlip, RandomRotation, Rescaling, Resizing, Rescaling, RandomZoom, RandomTranslation
+
+
+from tensorflow.keras.applications.resnet          import ResNet152
+from tensorflow.keras.applications.resnet_v2       import ResNet152V2, ResNet101V2
+from tensorflow.keras.applications.efficientnet    import EfficientNetB0
+from tensorflow.keras.applications.efficientnet_v2 import EfficientNetV2B0
 
 from tensorflow.keras.optimizers import Adam, SGD
+from tensorflow.keras.optimizers.schedules import ExponentialDecay
+
 from tensorflow.keras.callbacks  import ModelCheckpoint, EarlyStopping, TensorBoard, ReduceLROnPlateau, LearningRateScheduler
 from tensorflow.keras.losses     import SparseCategoricalCrossentropy, CategoricalCrossentropy, MSE
 from tensorflow.keras.utils      import plot_model
+
+from sklearn.model_selection import cross_val_score
+
 
 print("TF version:  ", tf.__version__)
 print("Hub version: ", hub.__version__)
@@ -41,7 +51,7 @@ IMG_SIZE      = (224, 224)
 WIDTH         = 224
 HEIGHT        = 224
 IMG_SHAPE     = IMG_SIZE + (3,)
-EPOCHS        = 35
+EPOCHS        = 15
 LEARNING_RATE = 0.003
 BETA_1        = 0.9
 BETA_2        = 0.999
@@ -162,9 +172,15 @@ def open_annotaions(annotations_path):
 # Optimisers
 ############################
 
+lr_schedule = ExponentialDecay(
+  initial_learning_rate = 1e-2,
+  decay_steps           = 10000,
+  decay_rate            = 0.9
+)
+
 ADAM_OPT = Adam(
-  learning_rate = LEARNING_RATE, 
-  beta_1        = BETA_1, 
+  learning_rate = lr_schedule,
+  beta_1        = BETA_1,
   beta_2        = BETA_2, 
   epsilon       = 1e-08
 )
@@ -178,25 +194,28 @@ SGD_OPT = SGD(
 # Pre-trained Models
 ############################
 
-resNet152v2Model = ResNet152V2(
+ResNet152V2Model = ResNet152V2(
   input_shape = IMG_SHAPE,
   include_top = False,
   weights     = "imagenet",
 )
 
-efficientNetB0 = EfficientNetB0(
+ResNet101V2Model = ResNet101V2(
+  input_shape = IMG_SHAPE,
+  include_top = False,
+  weights     = "imagenet",
+)
+
+EfficientNetB0 = EfficientNetB0(
   input_shape = IMG_SHAPE,
   include_top = False,
   weights     = "imagenet",
 )
 
 
-############################
 # EarlyStopping Callback
-############################
-
 earlyStop = EarlyStopping(
-  monitor   = 'val_accuracy',
+  monitor   = 'val_loss',
   mode      = 'max',
   min_delta = 0.001,
   patience  = 10
@@ -206,62 +225,32 @@ earlyStop = EarlyStopping(
 # ModelCheckpoint Callbacks
 ############################
 
-checkpoint_filepath = 'models/model-' + MODEL_NAME + '-{val_accuracy:.3f}.h5'
+checkpoint_filepath_loss = 'models/best-model-{epoch:02d}-{val_loss:.2f}.h5'
 
 checkpointer = ModelCheckpoint(
-  filepath          = checkpoint_filepath,
+  filepath          = checkpoint_filepath_loss,
   save_best_only    = True,
   save_weights_only = False,
-  mode              = 'max', 
-  monitor           = 'val_accuracy',
+  mode              = 'min', 
+  monitor           = 'val_loss',
   verbose           = 1
 )
 
-reduceLR = ReduceLROnPlateau( 
-  monitor  = 'val_loss',
-  factor   = 0.1,
-  patience = 3,
-  min_lr   = 0.00001
-)
+callbacks_list = [earlyStop, checkpointer]
 
-learningRate = LearningRateScheduler(
-  lambda epoch: 1e-3 * 10 ** (epoch / 30)
-)
-
-tensorboard = TensorBoard(
-  log_dir                = "./logs",
-  write_graph            = True,
-  write_images           = False,
-  #write_steps_per_second = False,
-  update_freq            = "epoch",
-  profile_batch          = 2,
-  embeddings_freq        = 0,
-  embeddings_metadata    = None
-)
-
-callbacks_list = [earlyStop, reduceLR, checkpointer, tensorboard]
-
-# for better data performance using buffered prefetching 
-# trainDataset = trainDataset.prefetch(buffer_size = AUTOTUNE)
-# validDataset = validDataset.prefetch(buffer_size = AUTOTUNE)
-# testDataset  = testDataset.prefetch(buffer_size  = AUTOTUNE)
 
 #########################################
 # Create a model from a pre trained one #
 #########################################
 
 def create_from_trained_model(preTrainedModel):
-  # Freeze the pretrained weights
-  preTrainedModel.trainable = False
-
-  #print("Number_of_layers in the base model: ", len(preTrainedModel.layers))
-
- # We unfreeze the top 10 layers while leaving BatchNorm layers frozen
-  # for layer in preTrainedModel.layers[-10:]:
-  #   if not isinstance(layer, BatchNormalization):
-  #     layer.trainable = True
+  for layer in preTrainedModel.layers:
+    layer.trainable = False
 
   base_layers = preTrainedModel.output
+
+  # Add a separable convolutional layer
+  base_layers = SeparableConv2D(NR_NEURONS, (3, 3), activation='relu', padding='same')(base_layers)
 
   # create the classifier branch
   avg                    = GlobalAveragePooling2D()(base_layers)
@@ -269,22 +258,9 @@ def create_from_trained_model(preTrainedModel):
   classifier_layers      = Concatenate()([avg, mx])
   classifier_layers      = BatchNormalization()(classifier_layers)
   classifier_layers      = Dropout(0.5)(classifier_layers)
-  classifier_layers      = Dense(NR_NEURONS, activation="relu")(classifier_layers)
   classifier_layers      = BatchNormalization()(classifier_layers)
   classifier_layers      = Dropout(0.5)(classifier_layers)
   classifier_predictions = Dense(NR_CLASSES, name='cl_head', activation ='softmax')(classifier_layers)
-
-  #efficientnetv2_l
-  # avg                    = GlobalAveragePooling2D()(base_layers)
-  # classifier_layers      = BatchNormalization()(avg)
-  # classifier_layers      = Dropout(0.25)(classifier_layers)
-  # classifier_predictions = Dense(NR_CLASSES, name='cl_head', activation ='softmax')(classifier_layers)
-
-  #create the localiser branch
-  locator_layers = Dense(128, activation='relu',    name='bb_1')(base_layers)
-  locator_layers = Dense(64,  activation='relu',    name='bb_2')(locator_layers)
-  locator_layers = Dense(32,  activation='relu',    name='bb_3')(locator_layers)
-  locator_layers = Dense(4,   activation='sigmoid', name='bb_head')(locator_layers)
 
   model = Model(
     inputs  = preTrainedModel.input,
@@ -296,42 +272,48 @@ def create_from_trained_model(preTrainedModel):
 
   return model
 
-model_name = 'efficientnetv2-b2'
-ckpt_type  = '21k-ft1k' # 21k, 1k
-hub_type   = 'classification' # feature-vector
-hub_url    = 'gs://cloud-tpu-checkpoints/efficientnet/v2/hub/' + model_name + '-' + ckpt_type +'/' + hub_type
+# Create a model from a pre trained one
 
-# tf.keras.backend.clear_session()
+def create_from_tfhub_model(preTrainedModel):
+  efficientnet_v2 = hub.KerasLayer("https://tfhub.dev/google/imagenet/efficientnet_v2_imagenet21k_ft1k_b0/classification/2", trainable = True)
+  resnet_v2       = hub.KerasLayer("https://tfhub.dev/google/imagenet/resnet_v2_101/classification/5", trainable = True)
+  #transformer    = hub.KerasLayer("https://tfhub.dev/sayakpaul/vit_b32_classification/1", trainable = True)
 
-efficientnet_v2 = hub.KerasLayer(hub_url, trainable = True)
-efficientnet_v2 = hub.KerasLayer("https://tfhub.dev/google/imagenet/efficientnet_v2_imagenet21k_ft1k_b0/classification/2", trainable = True)
-resnet_v2       = hub.KerasLayer("https://tfhub.dev/google/bit/m-r152x4/imagenet21k_classification/1", trainable = True)
+  model = tf.keras.Sequential([
+      tf.keras.layers.InputLayer(input_shape = [224, 224, 3]),
+      efficientnet_v2,
+      tf.keras.layers.Dropout(rate = 0.3),
+      tf.keras.layers.Dense(22, activation='softmax'),
+  ])
 
-# #transformer = hub.KerasLayer("https://tfhub.dev/sayakpaul/vit_b32_classification/1", trainable = True)
+  return model
 
-model = tf.keras.Sequential([
-    tf.keras.layers.InputLayer(input_shape = [224, 224, 3]),
-    efficientnet_v2,
-    tf.keras.layers.Dropout(rate = 0.3),
-    tf.keras.layers.Dense(22, activation='softmax'),
-])
+model = create_from_trained_model(ResNet152V2Model)
 
+
+# Build
 model.build((None,) + IMG_SIZE + (3,))
 
-#############################
-# Summary                   #
-#############################
-
+# Summary
 print(model.summary())
 
-#############################
-# Compile                   #
-#############################
+
+# Compile
+
+#taken from old keras source code
+def F1_Score(y_true, y_pred): 
+    true_positives      = K.sum(K.round(K.clip(y_true * y_pred, 0, 1)))
+    possible_positives  = K.sum(K.round(K.clip(y_true, 0, 1)))
+    predicted_positives = K.sum(K.round(K.clip(y_pred, 0, 1)))
+    precision           = true_positives / (predicted_positives + K.epsilon())
+    recall              = true_positives / (possible_positives + K.epsilon())
+    f1_val              = 2 * (precision*recall)/(precision+recall+K.epsilon())
+    return f1_val
 
 model.compile(
   optimizer = ADAM_OPT,
-  loss      = CategoricalCrossentropy(from_logits = True),
-  metrics   = ['accuracy']
+  loss      = CategoricalCrossentropy(),
+  metrics   = ['accuracy', 'Precision', 'Recall', F1_Score]
 )
 
 class_weight = {
@@ -348,7 +330,7 @@ history = model.fit(
   trainDataset,
   validation_data  = (validDataset),
   epochs           = EPOCHS,
-  callbacks        = [earlyStop, reduceLR, checkpointer, tensorboard],
+  callbacks        = [earlyStop, checkpointer]
 )
 
 saved_model_path = f"models/model_{MODEL_NAME}"
@@ -389,22 +371,3 @@ plt.show()
 loss, accuracy = model.evaluate(testDataset)
 
 print('Model accuracy ---> ', accuracy)
-
-#############################
-# Prediction                #
-#############################
-# imageBatch, labelBatch = testDataset.as_numpy_iterator().next()
-# predictedBatch         = model.predict(imageBatch)
-# predictedId            = np.argmax(predictedBatch, axis = -1)
-
-# plt.figure(figsize = (10, 10))
-
-# for i in range(9):
-#   ax = plt.subplot(3, 3, i + 1)
-
-#   plt.imshow(imageBatch[i].astype("uint8"))
-#   plt.title(classindices[predictedId[i]])
-#   plt.axis("off")
-
-# plt.tight_layout()
-# plt.show()
