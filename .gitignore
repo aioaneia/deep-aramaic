@@ -32,7 +32,8 @@ Thumbs.db
 
 # Image files
 ######################
-*.png
+/datasets/synthetic_data/*
+
 
 # Python files
 ######################
