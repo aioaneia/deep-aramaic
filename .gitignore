@@ -32,7 +32,7 @@ Thumbs.db
 
 # Image files
 ######################
-/datasets/synthetic_data/*
+/datasets/synthetic_data/train/*
 
 
 # Python files
